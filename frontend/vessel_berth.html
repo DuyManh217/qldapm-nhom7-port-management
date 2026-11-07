@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <title>Module 1: Quản lý Tàu & Cầu bến (Vessel & Berth)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="h-full flex flex-col p-6 space-y-4">
+  <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white"><i class="fa-solid fa-ship"></i></div>
+      <div>
+        <h1 class="text-base font-bold text-white">PHÂN HỆ 1: QUẢN LÝ TÀU & CẦU BẾN (VESSEL & BERTH SERVICE)</h1>
+        <p class="text-xs text-slate-400">Tân Cảng Sài Gòn · Spring Boot 3.3 · PostGIS Spatiotemporal · AI Genetic Algorithm</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold"><i class="fa-solid fa-house mr-1"></i>Trang Chủ</a>
+      <a href="/yard" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-500"><i class="fa-solid fa-cube mr-1"></i>Sang Module 2 (Bãi)</a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-4">
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Tổng Chiều Dài Cầu Bến</div>
+      <div class="text-xl font-bold text-white mt-1">2.040 m (B1 - B6)</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Tàu Đang Cập Bến</div>
+      <div class="text-xl font-bold text-emerald-400 mt-1" id="vessel-count">3 Tàu</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Năng Suất Bốc Dỡ</div>
+      <div class="text-xl font-bold text-amber-400 mt-1">32 moves/giờ</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+      <div>
+        <div class="text-xs text-slate-400">AI Genetic Solver</div>
+        <div class="text-xl font-bold text-cyan-400 mt-1">Sẵn sàng</div>
+      </div>
+      <button onclick="runAIBerthSolver()" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg text-xs font-bold shadow hover:brightness-110">
+        <i class="fa-solid fa-microchip mr-1"></i>Chạy AI
+      </button>
+    </div>
+  </div>
+
+  <div class="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
+    <div class="col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col">
+      <h2 class="text-xs font-bold text-white mb-2 flex items-center space-x-2">
+        <i class="fa-solid fa-diagram-project text-blue-400"></i>
+        <span>SƠ ĐỒ PHÂN BỔ CẦU BẾN CÁT LÁI (0m - 2.040m)</span>
+      </h2>
+      <div class="relative w-full h-32 bg-slate-950 rounded-xl border border-slate-800 p-2 flex flex-col justify-center overflow-hidden">
+        <div class="absolute inset-0 flex text-[9px] text-slate-700 font-bold border-b border-slate-800/50 pointer-events-none">
+          <div class="w-[14.7%] border-r border-slate-800/60 p-1">BẾN B1 (16m)</div>
+          <div class="w-[14.7%] border-r border-slate-800/60 p-1">BẾN B2 (16m)</div>
+          <div class="w-[17.1%] border-r border-slate-800/60 p-1">BẾN B3 (15.5m)</div>
+          <div class="w-[17.1%] border-r border-slate-800/60 p-1">BẾN B4 (15.5m)</div>
+          <div class="w-[17.1%] border-r border-slate-800/60 p-1">BẾN B5 (15.0m)</div>
+          <div class="w-[19.3%] p-1">BẾN B6 (14.5m)</div>
+        </div>
+        <div id="vessels-on-berth" class="relative w-full h-16"></div>
+      </div>
+
+      <div class="mt-4 flex-1 overflow-y-auto">
+        <table class="w-full text-xs text-left">
+          <thead class="text-slate-400 bg-slate-950/80 sticky top-0 border-b border-slate-800">
+            <tr>
+              <th class="py-2 px-3">MÃ CHUYẾN</th>
+              <th class="py-2 px-3">TÀU & HÃNG</th>
+              <th class="py-2 px-3">MÉT BẾN</th>
+              <th class="py-2 px-3">TIẾN ĐỘ MOVES</th>
+              <th class="py-2 px-3">TRẠNG THÁI</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800 text-slate-300 font-mono" id="port-calls-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3">
+      <h3 class="text-xs font-bold text-white flex items-center space-x-1.5 border-b border-slate-800 pb-2">
+        <i class="fa-solid fa-file-circle-plus text-cyan-400"></i>
+        <span>ĐĂNG KÝ CẬP BẾN (THỬ XUNG ĐỘT)</span>
+      </h3>
+      <form onsubmit="handleCreatePortCall(event)" class="space-y-2 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Chọn Tàu Quốc Tế</label>
+          <select id="vessel-imo" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+            <option value="9321483">9321483 - EVER GIVEN (LOA 400m - Draft 16.0m)</option>
+            <option value="9811000">9811000 - MAERSK MC-KINNEY (LOA 399m)</option>
+            <option value="9234567">9234567 - TAN CANG GLORY (LOA 172m)</option>
+            <option value="9110023">9110023 - HAI AN BELL (LOA 154m)</option>
+            <option value="123456">123456 - [TEST ERROR] IMO 6 số sai chuẩn</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">Cầu Bến</label>
+            <select id="berth-id" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
+              <option value="B1">Cầu bến B1 (16m)</option>
+              <option value="B2">Cầu bến B2 (16m)</option>
+              <option value="B3">Cầu bến B3 (15.5m)</option>
+              <option value="B4">Cầu bến B4 (15.5m)</option>
+              <option value="B5">Cầu bến B5 (15.0m)</option>
+              <option value="B6">Cầu bến B6 (14.5m)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Mớn Nước (Draft)</label>
+            <input type="number" step="0.1" id="vessel-draft" value="16.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Mét Bến Bắt Đầu (0 - 2040m)</label>
+          <input type="number" id="start-meter" value="50" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+        </div>
+        <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition">
+          Kiểm Tra & Phê Duyệt Cầu Bến
+        </button>
+      </form>
+      <div id="vessel-alert-box" class="hidden p-2.5 rounded border text-xs"></div>
+    </div>
+  </div>
+
+  <script>
+    async function loadPortCalls() {
+      const res = await fetch('/api/v1/port-calls');
+      const calls = await res.json();
+      const tbody = document.getElementById('port-calls-table');
+      const canvas = document.getElementById('vessels-on-berth');
+      tbody.innerHTML = '';
+      canvas.innerHTML = '';
+
+      calls.forEach(c => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="py-2 px-3 text-cyan-400 font-bold">${c.call_id}</td>
+            <td class="py-2 px-3 text-white font-bold">${c.vessel_name}</td>
+            <td class="py-2 px-3 text-emerald-400">${c.start_meter}m - ${c.end_meter}m</td>
+            <td class="py-2 px-3">${c.current_moves}/${c.total_moves} TEU</td>
+            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400">${c.status}</span></td>
+          </tr>`;
+        const left = (c.start_meter / 2040) * 100;
+        const width = Math.max(((c.end_meter - c.start_meter) / 2040) * 100, 5);
+        canvas.innerHTML += `
+          <div class="absolute h-12 bg-blue-600/30 border border-blue-500 rounded p-1 text-[10px] flex flex-col justify-center truncate shadow"
+               style="left:${left}%; width:${width}%; top:5px;">
+            <div class="font-bold text-white truncate">${c.vessel_name}</div>
+            <div class="text-[9px] text-blue-300">${c.start_meter}m-${c.end_meter}m</div>
+          </div>`;
+      });
+      document.getElementById('vessel-count').innerText = `${calls.length} Tàu`;
+    }
+
+    async function handleCreatePortCall(e) {
+      e.preventDefault();
+      const res = await fetch('/api/v1/port-calls', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          imo: document.getElementById('vessel-imo').value,
+          berth_id: document.getElementById('berth-id').value,
+          draft: parseFloat(document.getElementById('vessel-draft').value),
+          start_meter: parseFloat(document.getElementById('start-meter').value)
+        })
+      });
+      const data = await res.json();
+      const box = document.getElementById('vessel-alert-box');
+      box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
+      if (res.ok) {
+        box.classList.add('bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
+        box.innerHTML = `<b>✓ THÀNH CÔNG:</b> ${data.message}`;
+        loadPortCalls();
+      } else {
+        box.classList.add('bg-rose-500/20', 'border-rose-500', 'text-rose-300');
+        box.innerHTML = `<b>✗ LỖI (${res.status}):</b> ${data.message}`;
+      }
+    }
+
+    async function runAIBerthSolver() {
+      const res = await fetch('/api/v1/ai/optimize-berth', { method: 'POST' });
+      const data = await res.json();
+      alert(`[AI Solver ${data.solver}] Đã xếp lịch thành công ${data.scheduled_vessels_count} tàu trong ${data.execution_time_ms} ms!`);
+      loadPortCalls();
+    }
+
+    window.onload = loadPortCalls;
+  </script>
+</body>
+</html>

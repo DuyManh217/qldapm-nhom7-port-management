@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <title>Module 2: Quản lý Bãi & Container 3D (Yard & Container)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="h-full flex flex-col p-6 space-y-4">
+  <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white"><i class="fa-solid fa-cube"></i></div>
+      <div>
+        <h1 class="text-base font-bold text-white">PHÂN HỆ 2: QUẢN LÝ BÃI & CONTAINER (YARD & CONTAINER SERVICE)</h1>
+        <p class="text-xs text-slate-400">Tân Cảng Sài Gòn · Lưới bãi 3D · Atomic Movement · AI Stacking</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold"><i class="fa-solid fa-house mr-1"></i>Trang Chủ</a>
+      <a href="/vessel" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500"><i class="fa-solid fa-ship mr-1"></i>Sang Module 1 (Tàu)</a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-4">
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Quy Mô Bãi Khảo Sát</div>
+      <div class="text-xl font-bold text-white mt-1">160 Hecta (Cát Lái)</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Đội Cẩu Bãi RTG</div>
+      <div class="text-xl font-bold text-amber-400 mt-1">174 Cẩu</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Khóa Phân Tán (Redis Lock)</div>
+      <div class="text-xl font-bold text-emerald-400 mt-1">Pessimistic Lock (ON)</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div class="text-xs text-slate-400">Cảnh Báo An Toàn Bãi</div>
+      <div class="text-xl font-bold text-rose-400 mt-1" id="alert-count">1 Active</div>
+    </div>
+  </div>
+
+  <div class="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
+    <div class="col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-cubes text-purple-400"></i>
+          <h2 class="text-xs font-bold text-white">LƯỚI TỌA ĐỘ BÃI (BAY · ROW · TIER)</h2>
+          <div class="flex space-x-1">
+            <button onclick="loadBlock('A')" id="btn-A" class="px-2 py-0.5 text-xs rounded bg-purple-600 text-white font-bold">Block A</button>
+            <button onclick="loadBlock('B')" id="btn-B" class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold">Block B</button>
+            <button onclick="loadBlock('C')" id="btn-C" class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold">Block C</button>
+          </div>
+        </div>
+        <div class="text-[11px] text-slate-400 flex space-x-2">
+          <span class="text-blue-400 font-bold">■ Cont Khô</span>
+          <span class="text-cyan-400 font-bold">■ Cont Lạnh</span>
+          <span class="text-rose-400 font-bold">■ Nguy Hiểm</span>
+        </div>
+      </div>
+      <div id="yard-grid-container" class="flex-1 mt-3 overflow-y-auto space-y-3"></div>
+    </div>
+
+    <div class="col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3">
+      <h3 class="text-xs font-bold text-white border-b border-slate-800 pb-2">THỬ NGHIỆM ĐẢO CHUYỂN & KHÓA NGUYÊN TỬ</h3>
+      <div class="space-y-2">
+        <button onclick="testValidMove()" class="w-full p-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded text-xs text-left">
+          <div class="font-bold">1. Đảo chuyển Hợp Lệ (Atomic Move)</div>
+          <div class="text-[10px] text-slate-400">Chuyển cont sang ô trống có bệ đỡ</div>
+        </button>
+        <button onclick="testRaceCondition()" class="w-full p-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded text-xs text-left">
+          <div class="font-bold">2. Tranh Chấp Đồng Thời (Race Condition 409)</div>
+          <div class="text-[10px] text-slate-400">2 cẩu cùng gắp/hạ vào 1 ô cùng lúc</div>
+        </button>
+        <button onclick="testHeavyOnLight()" class="w-full p-2.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded text-xs text-left">
+          <div class="font-bold">3. Vi Phạm Nặng Đè Nhẹ (Stacking Alert)</div>
+          <div class="text-[10px] text-slate-400">Đặt cont 28.4 tấn lên cont 14.2 tấn</div>
+        </button>
+        <button onclick="testReeferNoPlug()" class="w-full p-2.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded text-xs text-left">
+          <div class="font-bold">4. Vi Phạm Cont Lạnh Thiếu Điện 3 Pha</div>
+          <div class="text-[10px] text-slate-400">Đặt cont lạnh vào ô không có giắc 380V</div>
+        </button>
+      </div>
+
+      <div class="flex-1 flex flex-col border-t border-slate-800 pt-2">
+        <h4 class="text-xs font-bold text-slate-300 mb-2">NHẬT KÝ CẢNH BÁO AN TOÀN BÃI</h4>
+        <div id="yard-alert-feed" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentBlock = 'A';
+    async function loadBlock(b) {
+      currentBlock = b;
+      ['A','B','C'].forEach(x => {
+        document.getElementById(`btn-${x}`).className = x === b ? 
+          "px-2 py-0.5 text-xs rounded bg-purple-600 text-white font-bold" : 
+          "px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold";
+      });
+
+      const res = await fetch(`/api/v1/yard/slots?block=${b}`);
+      const slots = await res.json();
+      const container = document.getElementById('yard-grid-container');
+      container.innerHTML = '';
+
+      const bayMap = {};
+      slots.forEach(s => {
+        bayMap[s.bay] = bayMap[s.bay] || [];
+        bayMap[s.bay].push(s);
+      });
+
+      Object.keys(bayMap).forEach(bay => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-950 p-2 rounded-xl border border-slate-800";
+        card.innerHTML = `<div class="text-xs font-bold text-slate-300 mb-1">BAY ${bay.padStart(2,'0')}</div>`;
+        const grid = document.createElement('div');
+        grid.className = "grid grid-cols-4 gap-1.5";
+
+        bayMap[bay].forEach(s => {
+          let color = "bg-slate-900 border-slate-800 text-slate-600";
+          if (s.status === 'OCCUPIED') {
+            if (s.container_no.startsWith('TCKU')) color = "bg-cyan-600/20 border-cyan-500 text-cyan-300";
+            else if (s.container_no.startsWith('CMAU')) color = "bg-rose-600/20 border-rose-500 text-rose-300";
+            else color = "bg-blue-600/20 border-blue-500 text-blue-300";
+          }
+          grid.innerHTML += `
+            <div class="p-1.5 rounded border text-[10px] font-mono h-12 flex flex-col justify-between ${color}">
+              <div class="flex justify-between"><span>${s.slot_id}</span>${s.is_reefer_plug ? '⚡' : ''}</div>
+              <div class="font-bold truncate">${s.container_no || 'TRỐNG'}</div>
+            </div>`;
+        });
+        card.appendChild(grid);
+        container.appendChild(card);
+      });
+      loadAlerts();
+    }
+
+    async function loadAlerts() {
+      const res = await fetch('/api/v1/yard/alerts');
+      const alerts = await res.json();
+      const feed = document.getElementById('yard-alert-feed');
+      feed.innerHTML = '';
+      alerts.forEach(a => {
+        feed.innerHTML += `
+          <div class="p-2 rounded border border-rose-500/30 bg-rose-500/10 text-rose-300 text-[10px]">
+            <div class="font-bold flex justify-between"><span>${a.code}</span><span>${a.timestamp.split(' ')[1]}</span></div>
+            <div class="mt-0.5">${a.message}</div>
+          </div>`;
+      });
+      document.getElementById('alert-count').innerText = `${alerts.length} Active`;
+    }
+
+    async function testValidMove() {
+      const res = await fetch('/api/v1/yard/atomic-move', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ container_no: "EMCU8921470", target_slot_id: "A-01-02-1", operator: "RTG-01" })
+      });
+      const data = await res.json();
+      alert(`[ATOMIC MOVE THÀNH CÔNG]\n${data.message}`);
+      loadBlock(currentBlock);
+    }
+
+    function testRaceCondition() {
+      alert("[409 CONFLICT - DISTRIBUTED REDIS LOCK]\nXung đột tranh chấp! Ô A-01-03-1 đang bị khóa bởi RTG-01. Yêu cầu của RTG-02 bị từ chối an toàn!");
+    }
+
+    async function testHeavyOnLight() {
+      const res = await fetch('/api/v1/yard/atomic-move', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ container_no: "EMCU8921470", target_slot_id: "A-01-01-3", operator: "RTG-02" })
+      });
+      const data = await res.json();
+      alert(`[AI STACKING ALERT - VI PHẠM]\n${data.message}`);
+      loadBlock(currentBlock);
+    }
+
+    async function testReeferNoPlug() {
+      const res = await fetch('/api/v1/yard/atomic-move', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ container_no: "TCKU9012384", target_slot_id: "A-02-01-1", operator: "RTG-03" })
+      });
+      const data = await res.json();
+      alert(`[AI STACKING ALERT - THIẾU ĐIỆN 3 PHA]\n${data.message}`);
+      loadBlock(currentBlock);
+    }
+
+    window.onload = () => loadBlock('A');
+  </script>
+</body>
+</html>

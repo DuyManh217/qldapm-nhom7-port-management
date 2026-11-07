@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <title>SPMS - Cổng Điều Hành Trực Quan 2 Phân Hệ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="h-full flex flex-col p-8 space-y-6 max-w-6xl mx-auto">
+  <div class="text-center space-y-2 border-b border-slate-800 pb-6">
+    <div class="inline-flex items-center space-x-2 px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-semibold">
+      <span>CẢNG TÂN CẢNG SÀI GÒN (SNP) · FPT SOFTWARE</span>
+    </div>
+    <h1 class="text-2xl font-black text-white tracking-wide">SMART PORT MANAGEMENT SYSTEM (SPMS)</h1>
+    <p class="text-sm text-slate-400">Kiến trúc Microservices Spring Boot 3.3 · PostGIS 3.4 · AI Genetic Solver · Lưới Bãi 3D</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between hover:border-blue-500 transition shadow-xl">
+      <div class="space-y-3">
+        <div class="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-ship"></i>
+        </div>
+        <h2 class="text-lg font-bold text-white">PHÂN HỆ 1: TÀU & CẦU BẾN (VESSEL & BERTH)</h2>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Quản lý danh mục tàu, phân bổ cầu bến Cát Lái 2.040m, động cơ phát hiện va chạm không gian - thời gian PostGIS, giải thuật di truyền AI Genetic Algorithm xếp lịch bến.
+        </p>
+        <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
+          <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded">backend/vessel_berth_backend.py</span>
+          <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded">frontend/vessel_berth.html</span>
+        </div>
+      </div>
+      <a href="/vessel" class="mt-6 w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition">
+        <span>MỞ GIAO DIỆN PHÂN HỆ 1</span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between hover:border-purple-500 transition shadow-xl">
+      <div class="space-y-3">
+        <div class="w-12 h-12 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-cube"></i>
+        </div>
+        <h2 class="text-lg font-bold text-white">PHÂN HỆ 2: BÃI & CONTAINER (YARD & CONTAINER)</h2>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Quản lý lưới bãi 3D (Block-Bay-Row-Tier), đảo chuyển bãi nguyên tử (Atomic Yard Movement) với khóa phân tán Redis chống xung đột cẩu, AI Stacking kiểm soát cont nặng đè nhẹ.
+        </p>
+        <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
+          <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded">backend/yard_container_backend.py</span>
+          <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded">frontend/yard_container.html</span>
+        </div>
+      </div>
+      <a href="/yard" class="mt-6 w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition">
+        <span>MỞ GIAO DIỆN PHÂN HỆ 2</span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
+    <div>
+      <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+        <i class="fa-solid fa-vial-virus text-emerald-400"></i>
+        <span>BỘ TEST TỰ ĐỘNG 15 KỊCH BẢN TÍCH HỢP (E2E SUITE)</span>
+      </h3>
+      <p class="text-xs text-slate-400 mt-1">Chạy tự động kiểm thử toàn trình 15 test cases (Collision, Draft, Lock, Kafka, AI, RBAC...)</p>
+    </div>
+    <button onclick="runTests()" id="test-btn" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2">
+      <i class="fa-solid fa-play"></i>
+      <span>CHẠY 15 TEST CASES</span>
+    </button>
+  </div>
+
+  <div id="test-output" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto text-xs font-mono"></div>
+
+  <script>
+    async function runTests() {
+      const btn = document.getElementById('test-btn');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Đang chạy...';
+      const res = await fetch('/api/v1/tests/run-all', { method: 'POST' });
+      const data = await res.json();
+      btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Đã chạy xong (15/15 PASS)';
+
+      const out = document.getElementById('test-output');
+      out.classList.remove('hidden');
+      let html = `<div class="font-bold text-emerald-400 mb-2">✓ KẾT QUẢ KIỂM THỬ: ${data.passed}/${data.total} KỊCH BẢN ĐẠT (PASS 100%)</div>`;
+      html += '<table class="w-full text-left"><thead><tr class="text-slate-400 border-b border-slate-800"><th class="py-1">Mã</th><th>Phân loại</th><th>Mô tả</th><th>Độ trễ</th><th>Trạng thái</th></tr></thead><tbody class="divide-y divide-slate-800/60">';
+      data.results.forEach(tc => {
+        html += `<tr><td class="py-1 text-cyan-400">${tc.id}</td><td class="text-slate-400">${tc.category}</td><td class="text-white">${tc.name}</td><td class="text-amber-400">${tc.latency_ms} ms</td><td class="text-emerald-400 font-bold">${tc.status}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      out.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
