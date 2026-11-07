@@ -78,6 +78,51 @@ def check_berth_collision(start_meter, end_meter, start_time_str, end_time_str, 
 def get_vessels():
     return jsonify(list(VESSELS.values()))
 
+@vessel_berth_bp.route("/api/v1/vessels", methods=["POST"])
+def add_vessel():
+    data = request.json or {}
+    imo = str(data.get("imo", "")).strip()
+    name = str(data.get("name", "")).strip()
+    carrier = str(data.get("carrier", "Unknown Carrier")).strip()
+
+    if not imo or len(imo) != 7 or not imo.isdigit():
+        return jsonify({"code": "ERR_INVALID_IMO", "message": "Mã IMO quốc tế không hợp lệ! Bắt buộc phải đúng 7 chữ số."}), 400
+
+    if imo in VESSELS:
+        return jsonify({"code": "ERR_VESSEL_EXISTS", "message": f"Tàu với mã IMO {imo} ({VESSELS[imo]['name']}) đã tồn tại trong hệ thống!"}), 409
+
+    if not name:
+        return jsonify({"code": "ERR_INVALID_NAME", "message": "Tên tàu không được để trống!"}), 400
+
+    try:
+        loa = float(data.get("loa", 200.0))
+        beam = float(data.get("beam", 30.0))
+        max_draft = float(data.get("max_draft", 12.0))
+        dwt = int(data.get("dwt", 30000))
+        teu = int(data.get("teu", 2500))
+    except (ValueError, TypeError):
+        return jsonify({"code": "ERR_INVALID_SPECS", "message": "Thông số kỹ thuật tàu (LOA, Beam, Draft, DWT, TEU) phải là số hợp lệ!"}), 400
+
+    if loa <= 0 or beam <= 0 or max_draft <= 0:
+        return jsonify({"code": "ERR_INVALID_DIMENSIONS", "message": "Kích thước tàu (LOA, Beam, Draft) phải lớn hơn 0!"}), 400
+
+    new_vessel = {
+        "imo": imo,
+        "name": name.upper(),
+        "carrier": carrier,
+        "loa": loa,
+        "beam": beam,
+        "max_draft": max_draft,
+        "dwt": dwt,
+        "teu": teu
+    }
+    VESSELS[imo] = new_vessel
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Thêm tàu mới thành công: {new_vessel['name']} (IMO: {imo})",
+        "data": new_vessel
+    }), 201
+
 @vessel_berth_bp.route("/api/v1/berths", methods=["GET"])
 def get_berths():
     return jsonify(BERTHS)

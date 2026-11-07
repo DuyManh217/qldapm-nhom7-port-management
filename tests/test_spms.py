@@ -136,5 +136,65 @@ class SPMSTestSuite(unittest.TestCase):
         self.assertEqual(data["total"], 15)
         self.assertEqual(data["passed"], 15)
 
+    def test_16_add_vessel_success(self):
+        payload = {
+            "imo": "9988776",
+            "name": "VN STAR 01",
+            "carrier": "VIMC Lines",
+            "loa": 215.0,
+            "beam": 32.2,
+            "max_draft": 11.5,
+            "dwt": 32000,
+            "teu": 2200
+        }
+        response = self.client.post("/api/v1/vessels", json=payload)
+        self.assertEqual(response.status_code, 201)
+        data = response.get_json()
+        self.assertEqual(data["code"], "SUCCESS")
+        self.assertEqual(data["data"]["name"], "VN STAR 01")
+
+        # Verify it now appears in GET /api/v1/vessels
+        v_res = self.client.get("/api/v1/vessels")
+        v_data = v_res.get_json()
+        imos = [v["imo"] for v in v_data]
+        self.assertIn("9988776", imos)
+
+    def test_17_add_vessel_duplicate_imo(self):
+        # 9321483 (EVER GIVEN) already exists
+        payload = {
+            "imo": "9321483",
+            "name": "DUPLICATE VESSEL",
+            "loa": 300.0,
+            "beam": 40.0,
+            "max_draft": 14.0
+        }
+        response = self.client.post("/api/v1/vessels", json=payload)
+        self.assertEqual(response.status_code, 409)
+        data = response.get_json()
+        self.assertEqual(data["code"], "ERR_VESSEL_EXISTS")
+
+    def test_18_add_vessel_invalid_specs(self):
+        # Invalid IMO length (less than 7 digits)
+        payload = {
+            "imo": "1234",
+            "name": "INVALID IMO",
+            "loa": 200.0
+        }
+        response = self.client.post("/api/v1/vessels", json=payload)
+        self.assertEqual(response.status_code, 400)
+        data = response.get_json()
+        self.assertEqual(data["code"], "ERR_INVALID_IMO")
+
+        # Invalid LOA <= 0
+        payload2 = {
+            "imo": "9999991",
+            "name": "INVALID LOA",
+            "loa": -10.0
+        }
+        response2 = self.client.post("/api/v1/vessels", json=payload2)
+        self.assertEqual(response2.status_code, 400)
+        data2 = response2.get_json()
+        self.assertEqual(data2["code"], "ERR_INVALID_DIMENSIONS")
+
 if __name__ == "__main__":
     unittest.main()

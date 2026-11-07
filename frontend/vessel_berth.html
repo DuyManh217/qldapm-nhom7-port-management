@@ -80,19 +80,21 @@
     </div>
 
     <div class="col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3">
-      <h3 class="text-xs font-bold text-white flex items-center space-x-1.5 border-b border-slate-800 pb-2">
-        <i class="fa-solid fa-file-circle-plus text-cyan-400"></i>
-        <span>ĐĂNG KÝ CẬP BẾN (THỬ XUNG ĐỘT)</span>
-      </h3>
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="text-xs font-bold text-white flex items-center space-x-1.5">
+          <i class="fa-solid fa-file-circle-plus text-cyan-400"></i>
+          <span>ĐĂNG KÝ CẬP BẾN</span>
+        </h3>
+        <button type="button" onclick="openAddVesselModal()" class="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded text-[11px] font-bold shadow flex items-center space-x-1">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+          <span>Thêm Tàu Mới</span>
+        </button>
+      </div>
       <form onsubmit="handleCreatePortCall(event)" class="space-y-2 text-xs">
         <div>
           <label class="block text-slate-400 mb-1">Chọn Tàu Quốc Tế</label>
-          <select id="vessel-imo" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-            <option value="9321483">9321483 - EVER GIVEN (LOA 400m - Draft 16.0m)</option>
-            <option value="9811000">9811000 - MAERSK MC-KINNEY (LOA 399m)</option>
-            <option value="9234567">9234567 - TAN CANG GLORY (LOA 172m)</option>
-            <option value="9110023">9110023 - HAI AN BELL (LOA 154m)</option>
-            <option value="123456">123456 - [TEST ERROR] IMO 6 số sai chuẩn</option>
+          <select id="vessel-imo" onchange="onVesselSelected()" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+            <option value="">-- Đang tải danh sách tàu... --</option>
           </select>
         </div>
         <div class="grid grid-cols-2 gap-2">
@@ -108,13 +110,14 @@
             </select>
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Mớn Nước (Draft)</label>
+            <label class="block text-slate-400 mb-1">Mớn Nước (Draft - m)</label>
             <input type="number" step="0.1" id="vessel-draft" value="16.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
           </div>
         </div>
         <div>
           <label class="block text-slate-400 mb-1">Mét Bến Bắt Đầu (0 - 2040m)</label>
-          <input type="number" id="start-meter" value="50" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          <input type="number" id="start-meter" value="1300" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          <p class="text-[10px] text-slate-500 mt-0.5">Mẹo: Bến B5 (1300m - 1650m) hiện đang trống an toàn.</p>
         </div>
         <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition">
           Kiểm Tra & Phê Duyệt Cầu Bến
@@ -124,7 +127,174 @@
     </div>
   </div>
 
+  <!-- MODAL THÊM TÀU MỚI -->
+  <div id="add-vessel-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
+            <i class="fa-solid fa-ship text-sm"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white">ĐĂNG KÝ THÔNG SỐ TÀU MỚI</h3>
+        </div>
+        <button onclick="closeAddVesselModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form onsubmit="handleAddNewVessel(event)" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Mã IMO Quốc Tế (7 số) *</label>
+            <input type="text" id="new-imo" required maxlength="7" placeholder="VD: 9988776" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Tên Tàu *</label>
+            <input type="text" id="new-name" required placeholder="VD: VN STAR 01" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white uppercase focus:border-blue-500 outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Hãng Tàu Khai Thác</label>
+          <input type="text" id="new-carrier" placeholder="VD: SNP Shipping / VIMC Lines / Maersk" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white focus:border-blue-500 outline-none">
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">LOA (m) *</label>
+            <input type="number" step="0.1" id="new-loa" required value="200.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Beam (m) *</label>
+            <input type="number" step="0.1" id="new-beam" required value="32.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Draft Max (m) *</label>
+            <input type="number" step="0.1" id="new-draft" required value="12.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Trọng Tải DWT (Tấn)</label>
+            <input type="number" id="new-dwt" value="35000" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Sức Chở (TEU)</label>
+            <input type="number" id="new-teu" value="2500" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
+          </div>
+        </div>
+
+        <div id="modal-alert-box" class="hidden p-2 rounded text-xs"></div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeAddVesselModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-xs">Hủy</button>
+          <button type="submit" id="save-vessel-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs shadow flex items-center space-x-1">
+            <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Tàu Vào Hệ Thống
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
+    let vesselsCache = {};
+
+    async function loadVessels(selectImo = null) {
+      try {
+        const res = await fetch('/api/v1/vessels');
+        const list = await res.json();
+        const select = document.getElementById('vessel-imo');
+        select.innerHTML = '';
+        vesselsCache = {};
+
+        list.forEach(v => {
+          vesselsCache[v.imo] = v;
+          const opt = document.createElement('option');
+          opt.value = v.imo;
+          opt.textContent = `${v.imo} - ${v.name} (LOA ${v.loa}m - Draft ${v.max_draft}m - ${v.carrier})`;
+          select.appendChild(opt);
+        });
+
+        // Add test error option for validation demo
+        const errOpt = document.createElement('option');
+        errOpt.value = '123456';
+        errOpt.textContent = '123456 - [TEST ERROR] IMO 6 số sai chuẩn';
+        select.appendChild(errOpt);
+
+        if (selectImo && vesselsCache[selectImo]) {
+          select.value = selectImo;
+        } else if (list.length > 0) {
+          select.value = list[0].imo;
+        }
+        onVesselSelected();
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách tàu:', err);
+      }
+    }
+
+    function onVesselSelected() {
+      const imo = document.getElementById('vessel-imo').value;
+      const v = vesselsCache[imo];
+      if (v) {
+        document.getElementById('vessel-draft').value = v.max_draft;
+      }
+    }
+
+    function openAddVesselModal() {
+      const modal = document.getElementById('add-vessel-modal');
+      modal.classList.remove('hidden');
+      const alertBox = document.getElementById('modal-alert-box');
+      alertBox.className = 'hidden p-2 rounded text-xs';
+      alertBox.innerHTML = '';
+      document.getElementById('new-imo').focus();
+    }
+
+    function closeAddVesselModal() {
+      document.getElementById('add-vessel-modal').classList.add('hidden');
+    }
+
+    async function handleAddNewVessel(e) {
+      e.preventDefault();
+      const imo = document.getElementById('new-imo').value.trim();
+      const name = document.getElementById('new-name').value.trim();
+      const carrier = document.getElementById('new-carrier').value.trim() || 'Tự do';
+      const loa = parseFloat(document.getElementById('new-loa').value);
+      const beam = parseFloat(document.getElementById('new-beam').value);
+      const max_draft = parseFloat(document.getElementById('new-draft').value);
+      const dwt = parseInt(document.getElementById('new-dwt').value) || 30000;
+      const teu = parseInt(document.getElementById('new-teu').value) || 2000;
+
+      const alertBox = document.getElementById('modal-alert-box');
+      alertBox.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
+
+      try {
+        const res = await fetch('/api/v1/vessels', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ imo, name, carrier, loa, beam, max_draft, dwt, teu })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          closeAddVesselModal();
+          await loadVessels(imo);
+          const box = document.getElementById('vessel-alert-box');
+          box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300');
+          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
+          box.innerHTML = `<b>✓ THÊM TÀU MỚI THÀNH CÔNG:</b> ${data.message} - Đã tự động chọn vào danh sách!`;
+          // Reset form
+          document.getElementById('new-imo').value = '';
+          document.getElementById('new-name').value = '';
+          document.getElementById('new-carrier').value = '';
+        } else {
+          alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+          alertBox.innerHTML = `<b>✗ LỖI:</b> ${data.message}`;
+        }
+      } catch (err) {
+        alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+        alertBox.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
+      }
+    }
+
     async function loadPortCalls() {
       const res = await fetch('/api/v1/port-calls');
       const calls = await res.json();
@@ -186,7 +356,10 @@
       loadPortCalls();
     }
 
-    window.onload = loadPortCalls;
+    window.onload = function() {
+      loadVessels();
+      loadPortCalls();
+    };
   </script>
 </body>
 </html>
