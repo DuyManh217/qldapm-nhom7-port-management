@@ -72,6 +72,7 @@
               <th class="py-2 px-3">MÉT BẾN</th>
               <th class="py-2 px-3">TIẾN ĐỘ MOVES</th>
               <th class="py-2 px-3">TRẠNG THÁI</th>
+              <th class="py-2 px-3 text-right">THAO TÁC</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800 text-slate-300 font-mono" id="port-calls-table"></tbody>
@@ -92,7 +93,13 @@
       </div>
       <form onsubmit="handleCreatePortCall(event)" class="space-y-2 text-xs">
         <div>
-          <label class="block text-slate-400 mb-1">Chọn Tàu Quốc Tế</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-slate-400">Chọn Tàu Quốc Tế</label>
+            <button type="button" onclick="handleDeleteSelectedVessel()" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold flex items-center space-x-1" title="Xóa tàu này khỏi danh mục hệ thống">
+              <i class="fa-solid fa-trash-can"></i>
+              <span>Xóa Tàu Này</span>
+            </button>
+          </div>
           <select id="vessel-imo" onchange="onVesselSelected()" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
             <option value="">-- Đang tải danh sách tàu... --</option>
           </select>
@@ -295,6 +302,60 @@
       }
     }
 
+    async function handleDeleteSelectedVessel() {
+      const imo = document.getElementById('vessel-imo').value;
+      if (!imo || imo === '123456') {
+        alert('Vui lòng chọn một con tàu thực tế trong danh mục để xóa!');
+        return;
+      }
+      const v = vesselsCache[imo];
+      const vesselName = v ? v.name : imo;
+      if (!confirm(`Bạn có chắc chắn muốn xóa tàu "${vesselName}" (IMO: ${imo}) khỏi danh mục hệ thống?`)) {
+        return;
+      }
+
+      const box = document.getElementById('vessel-alert-box');
+      box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
+
+      try {
+        const res = await fetch(`/api/v1/vessels/${imo}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
+          box.innerHTML = `<b>✓ ĐÃ XÓA TÀU:</b> ${data.message}`;
+          await loadVessels();
+        } else {
+          box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+          box.innerHTML = `<b>✗ KHÔNG THỂ XÓA TÀU:</b> ${data.message}`;
+        }
+      } catch (err) {
+        box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+        box.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
+      }
+    }
+
+    async function handleDeletePortCall(callId, vesselName) {
+      if (!confirm(`Xác nhận cho tàu "${vesselName}" (${callId}) rời bến và giải phóng mét cầu bến?`)) {
+        return;
+      }
+      try {
+        const res = await fetch(`/api/v1/port-calls/${callId}`, { method: 'DELETE' });
+        const data = await res.json();
+        const box = document.getElementById('vessel-alert-box');
+        box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
+        if (res.ok) {
+          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
+          box.innerHTML = `<b>✓ GIẢI PHÓNG CẦU BẾN:</b> ${data.message}`;
+          loadPortCalls();
+        } else {
+          box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+          box.innerHTML = `<b>✗ LỖI:</b> ${data.message}`;
+        }
+      } catch (err) {
+        alert('Lỗi kết nối khi xóa chuyến tàu: ' + err.message);
+      }
+    }
+
     async function loadPortCalls() {
       const res = await fetch('/api/v1/port-calls');
       const calls = await res.json();
@@ -311,6 +372,12 @@
             <td class="py-2 px-3 text-emerald-400">${c.start_meter}m - ${c.end_meter}m</td>
             <td class="py-2 px-3">${c.current_moves}/${c.total_moves} TEU</td>
             <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400">${c.status}</span></td>
+            <td class="py-2 px-3 text-right">
+              <button onclick="handleDeletePortCall('${c.call_id}', '${c.vessel_name}')" class="px-2 py-0.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded border border-rose-500/40 text-[10px] font-bold transition flex items-center space-x-1 ml-auto">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>Rời bến</span>
+              </button>
+            </td>
           </tr>`;
         const left = (c.start_meter / 2040) * 100;
         const width = Math.max(((c.end_meter - c.start_meter) / 2040) * 100, 5);

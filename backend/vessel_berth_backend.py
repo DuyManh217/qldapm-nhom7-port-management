@@ -178,6 +178,40 @@ def create_port_call():
     PORT_CALLS.append(new_call)
     return jsonify({"code": "SUCCESS", "message": "Đăng ký chuyến tàu và phân bổ cầu bến thành công!", "data": new_call}), 201
 
+@vessel_berth_bp.route("/api/v1/port-calls/<call_id>", methods=["DELETE"])
+def delete_port_call(call_id):
+    global PORT_CALLS
+    call = next((c for c in PORT_CALLS if c["call_id"] == call_id), None)
+    if not call:
+        return jsonify({"code": "ERR_CALL_NOT_FOUND", "message": f"Không tìm thấy chuyến tàu mã: {call_id}"}), 404
+
+    PORT_CALLS = [c for c in PORT_CALLS if c["call_id"] != call_id]
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Đã giải phóng cầu bến và cho tàu {call['vessel_name']} ({call_id}) rời bến thành công!",
+        "deleted_call_id": call_id
+    }), 200
+
+@vessel_berth_bp.route("/api/v1/vessels/<imo>", methods=["DELETE"])
+def delete_vessel(imo):
+    if imo not in VESSELS:
+        return jsonify({"code": "ERR_VESSEL_NOT_FOUND", "message": f"Không tìm thấy tàu có mã IMO: {imo}"}), 404
+
+    active_call = next((c for c in PORT_CALLS if c["imo"] == imo), None)
+    if active_call:
+        return jsonify({
+            "code": "ERR_VESSEL_CURRENTLY_DOCKED",
+            "message": f"Không thể xóa tàu {VESSELS[imo]['name']} vì đang có chuyến cập bến ({active_call['call_id']}) tại cầu bến! Vui lòng cho tàu rời bến trước."
+        }), 409
+
+    v_name = VESSELS[imo]["name"]
+    del VESSELS[imo]
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Đã xóa tàu {v_name} (IMO: {imo}) khỏi danh mục hệ thống thành công!",
+        "deleted_imo": imo
+    }), 200
+
 @vessel_berth_bp.route("/api/v1/ai/optimize-berth", methods=["POST"])
 def ai_optimize_berth():
     t0 = time.time()

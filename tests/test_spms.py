@@ -196,5 +196,43 @@ class SPMSTestSuite(unittest.TestCase):
         data2 = response2.get_json()
         self.assertEqual(data2["code"], "ERR_INVALID_DIMENSIONS")
 
+    def test_19_delete_port_call(self):
+        # Delete an existing port call
+        res = self.client.delete("/api/v1/port-calls/CALL-2026-001")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["code"], "SUCCESS")
+
+        # Deleting a non-existent port call returns 404
+        res2 = self.client.delete("/api/v1/port-calls/NON_EXISTENT_CALL")
+        self.assertEqual(res2.status_code, 404)
+
+    def test_20_delete_vessel(self):
+        # Add a temporary vessel
+        temp_payload = {
+            "imo": "8877665",
+            "name": "TEMP VESSEL FOR DELETE",
+            "loa": 180.0,
+            "beam": 25.0,
+            "max_draft": 10.0
+        }
+        self.client.post("/api/v1/vessels", json=temp_payload)
+
+        # Deleting the vessel should succeed
+        res = self.client.delete("/api/v1/vessels/8877665")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["code"], "SUCCESS")
+
+        # Deleting it again should return 404
+        res2 = self.client.delete("/api/v1/vessels/8877665")
+        self.assertEqual(res2.status_code, 404)
+
+        # Deleting a vessel currently docked (e.g. 9234567 TAN CANG GLORY at CALL-2026-002) returns 409
+        res3 = self.client.delete("/api/v1/vessels/9234567")
+        self.assertEqual(res3.status_code, 409)
+        data3 = res3.get_json()
+        self.assertEqual(data3["code"], "ERR_VESSEL_CURRENTLY_DOCKED")
+
 if __name__ == "__main__":
     unittest.main()
