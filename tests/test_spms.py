@@ -234,5 +234,31 @@ class SPMSTestSuite(unittest.TestCase):
         data3 = res3.get_json()
         self.assertEqual(data3["code"], "ERR_VESSEL_CURRENTLY_DOCKED")
 
+    def test_21_manual_atomic_move_success(self):
+        # Move container EMCU8921470 from A-01-01-1 to A-01-02-1
+        payload = {
+            "container_no": "EMCU8921470",
+            "target_slot_id": "A-01-02-1",
+            "operator": "RTG-01"
+        }
+        res = self.client.post("/api/v1/yard/atomic-move", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["code"], "SUCCESS")
+        self.assertEqual(data["new_slot_id"], "A-01-02-1")
+
+    def test_22_manual_atomic_move_errors(self):
+        # Non-existent container -> 404
+        res1 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "FAKE9999999", "target_slot_id": "A-01-02-1"})
+        self.assertEqual(res1.status_code, 404)
+
+        # Non-existent slot -> 404
+        res2 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "EMCU8921470", "target_slot_id": "Z-99-99-9"})
+        self.assertEqual(res2.status_code, 404)
+
+        # Stacking violation: place reefer on non-reefer slot -> 422
+        res3 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "TCKU9012384", "target_slot_id": "A-02-01-1"})
+        self.assertEqual(res3.status_code, 422)
+
 if __name__ == "__main__":
     unittest.main()
