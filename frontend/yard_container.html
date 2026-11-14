@@ -5,6 +5,24 @@
   <title>Module 2: Quản lý Bãi & Container 3D (Yard & Container)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Thanh cuộn mượt mà trực quan */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.4);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.7);
+    }
+  </style>
 </head>
 <body class="h-full flex flex-col p-6 space-y-4">
   <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
@@ -40,16 +58,24 @@
     </div>
   </div>
 
-  <div class="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
-    <div class="col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+  <div class="flex-1 grid grid-cols-12 gap-4 overflow-hidden min-h-0">
+    <div class="col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex flex-wrap items-center justify-between pb-2.5 border-b border-slate-800 gap-2">
         <div class="flex items-center space-x-2">
           <i class="fa-solid fa-cubes text-purple-400"></i>
-          <h2 class="text-xs font-bold text-white">LƯỚI TỌA ĐỘ BÃI (BAY · ROW · TIER)</h2>
+          <h2 class="text-xs font-bold text-white">LƯỚI TỌA ĐỘ BÃI</h2>
           <div class="flex space-x-1">
             <button onclick="loadBlock('A')" id="btn-A" class="px-2 py-0.5 text-xs rounded bg-purple-600 text-white font-bold">Block A</button>
-            <button onclick="loadBlock('B')" id="btn-B" class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold">Block B</button>
-            <button onclick="loadBlock('C')" id="btn-C" class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold">Block C</button>
+            <button onclick="loadBlock('B')" id="btn-B" class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">Block B</button>
+            <button onclick="loadBlock('C')" id="btn-C" class="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">Block C</button>
+          </div>
+          <div class="flex items-center space-x-1 pl-2 border-l border-slate-800 text-xs">
+            <span class="text-[11px] text-slate-400 font-medium mr-0.5">Bay:</span>
+            <button onclick="setBayFilter('ALL')" id="bay-btn-ALL" class="px-2 py-0.5 text-[11px] rounded bg-indigo-600 text-white font-bold shadow">Tất Cả</button>
+            <button onclick="setBayFilter('1')" id="bay-btn-1" class="px-1.5 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">Bay 1</button>
+            <button onclick="setBayFilter('2')" id="bay-btn-2" class="px-1.5 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">Bay 2</button>
+            <button onclick="setBayFilter('3')" id="bay-btn-3" class="px-1.5 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">Bay 3</button>
+            <button onclick="setBayFilter('4')" id="bay-btn-4" class="px-1.5 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">Bay 4</button>
           </div>
         </div>
         <div class="text-[11px] text-slate-400 flex space-x-2">
@@ -58,23 +84,43 @@
           <span class="text-rose-400 font-bold">■ Nguy Hiểm</span>
         </div>
       </div>
-      <div id="yard-grid-container" class="flex-1 mt-3 overflow-y-auto space-y-3"></div>
+      <div id="yard-grid-container" class="flex-1 mt-3 overflow-y-auto space-y-4 pr-1.5"></div>
     </div>
 
-    <div class="col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3 overflow-y-auto max-h-full">
-      <!-- FORM ĐIỀU PHỐI DI CHUYỂN THỦ CÔNG -->
+    <div class="col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3 overflow-y-auto min-h-0 max-h-full">
+      <!-- FORM ĐIỀU PHỐI DI CHUYỂN & QUẢN LÝ CONTAINER -->
       <div class="space-y-3 border-b border-slate-800 pb-3">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-white flex items-center space-x-1.5">
             <i class="fa-solid fa-arrows-up-down-left-right text-purple-400"></i>
-            <span>ĐIỀU PHỐI DI CHUYỂN THỦ CÔNG</span>
+            <span>ĐIỀU PHỐI & QUẢN LÝ CONTAINER</span>
           </h3>
-          <span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">Atomic Move</span>
+          <div class="flex items-center space-x-1.5">
+            <button type="button" onclick="resetYard()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-medium transition" title="Khôi phục dữ liệu bãi mẫu ban đầu">
+              ↺ Reset Bãi
+            </button>
+            <button type="button" onclick="openAddContainerModal()" class="px-2 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded text-[11px] font-bold shadow flex items-center space-x-1">
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>Thêm Cont Mới</span>
+            </button>
+          </div>
         </div>
 
         <div class="space-y-2 text-xs">
           <div>
-            <label class="block text-slate-400 mb-1">1. Chọn Container Cần Di Chuyển</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-slate-400">1. Chọn Container Trên Bãi</label>
+              <div class="flex items-center space-x-2">
+                <button type="button" onclick="openEditContainerModal()" class="text-amber-400 hover:text-amber-300 text-[11px] font-bold flex items-center space-x-1" title="Sửa thông số container này">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                  <span>Sửa</span>
+                </button>
+                <button type="button" onclick="handleDeleteContainer()" class="text-rose-400 hover:text-rose-300 text-[11px] font-bold flex items-center space-x-1" title="Xóa container này khỏi bãi">
+                  <i class="fa-solid fa-trash-can"></i>
+                  <span>Xóa</span>
+                </button>
+              </div>
+            </div>
             <select id="move-container-no" onchange="onContainerSelectChange()" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono text-xs outline-none focus:border-purple-500">
               <option value="">-- Đang tải danh sách container... --</option>
             </select>
@@ -106,26 +152,7 @@
         <div id="manual-move-alert" class="hidden p-2 rounded border text-xs"></div>
       </div>
 
-      <!-- KỊCH BẢN THỬ NGHIỆM MẪU -->
-      <div>
-        <h4 class="text-[11px] font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">
-          <span>Kịch Bản Thử Nghiệm Nhanh</span>
-        </h4>
-        <div class="grid grid-cols-2 gap-1.5">
-          <button onclick="testValidMove()" class="p-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded text-[11px] text-left">
-            <div class="font-bold truncate">✓ Đảo Hợp Lệ</div>
-          </button>
-          <button onclick="testRaceCondition()" class="p-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded text-[11px] text-left">
-            <div class="font-bold truncate">✗ Tranh Chấp 409</div>
-          </button>
-          <button onclick="testHeavyOnLight()" class="p-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded text-[11px] text-left">
-            <div class="font-bold truncate">⚠ Nặng Đè Nhẹ</div>
-          </button>
-          <button onclick="testReeferNoPlug()" class="p-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded text-[11px] text-left">
-            <div class="font-bold truncate">⚡ Thiếu Điện 3P</div>
-          </button>
-        </div>
-      </div>
+
 
       <div class="flex-1 flex flex-col border-t border-slate-800 pt-2 min-h-[140px]">
         <h4 class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
@@ -139,9 +166,23 @@
 
   <script>
     let currentBlock = 'A';
+    let currentBay = 'ALL';
     let containersCache = {};
     let selectedContainerNo = null;
     let selectedTargetSlot = null;
+
+    function setBayFilter(bayNum) {
+      currentBay = bayNum;
+      ['ALL', '1', '2', '3', '4'].forEach(x => {
+        const btn = document.getElementById(`bay-btn-${x}`);
+        if (btn) {
+          btn.className = (x === currentBay) ? 
+            "px-2 py-0.5 text-[11px] rounded bg-indigo-600 text-white font-bold shadow" : 
+            "px-1.5 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-bold hover:bg-slate-700";
+        }
+      });
+      loadBlock(currentBlock);
+    }
 
     async function loadContainers(selectNo = null) {
       try {
@@ -183,7 +224,10 @@
       const box = document.getElementById('manual-move-alert');
       box.className = 'p-2 rounded border border-purple-500/40 bg-purple-500/10 text-purple-300 text-xs';
       box.classList.remove('hidden');
-      box.innerHTML = `Đã chọn container <b>${containerNo}</b>. Bây giờ hãy bấm vào một ô <b>TRỐNG</b> trên lưới bãi!`;
+      box.innerHTML = `Đã chọn container <b>${containerNo}</b>. ` + 
+        `<button onclick="openEditContainerModal()" class="px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold ml-1 hover:bg-amber-500/50">✏ Sửa</button> ` +
+        `<button onclick="handleDeleteContainer()" class="px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-200 border border-rose-500/40 font-bold ml-1 hover:bg-rose-500/50">🗑 Xóa</button>` +
+        `<div class="mt-1 text-slate-400">Bấm vào một ô <b>TRỐNG</b> trên lưới bãi để chọn vị trí đảo chuyển!</div>`;
       loadBlock(currentBlock);
     }
 
@@ -264,43 +308,123 @@
         bayMap[s.bay].push(s);
       });
 
-      Object.keys(bayMap).forEach(bay => {
-        const card = document.createElement('div');
-        card.className = "bg-slate-950 p-2.5 rounded-xl border border-slate-800 shadow";
-        card.innerHTML = `<div class="text-xs font-bold text-slate-300 mb-1.5 flex justify-between"><span>BAY ${bay.padStart(2,'0')}</span><span class="text-[10px] text-slate-500">Tier 1 -> 4</span></div>`;
-        const grid = document.createElement('div');
-        grid.className = "grid grid-cols-4 gap-1.5";
-
-        bayMap[bay].forEach(s => {
-          let color = "bg-slate-900 border-slate-800 text-slate-600 hover:border-slate-600";
-          let isSelectedTarget = (s.slot_id === selectedTargetSlot);
-          let isSelectedCont = (s.container_no && s.container_no === selectedContainerNo);
-
-          if (s.status === 'OCCUPIED') {
-            if (s.container_no.startsWith('TCKU')) color = "bg-cyan-600/20 border-cyan-500 text-cyan-300";
-            else if (s.container_no.startsWith('CMAU')) color = "bg-rose-600/20 border-rose-500 text-rose-300";
-            else color = "bg-blue-600/20 border-blue-500 text-blue-300";
-          }
-
-          let ringClass = "";
-          if (isSelectedCont) ringClass = "ring-2 ring-amber-400 scale-[1.02] shadow-lg";
-          else if (isSelectedTarget) ringClass = "ring-2 ring-emerald-400 bg-emerald-500/20 scale-[1.02] shadow-lg";
-
-          const clickHandler = s.status === 'OCCUPIED' ? 
-            `onclick="selectContainerForMove('${s.container_no}')"` : 
-            `onclick="selectTargetSlot('${s.slot_id}')"`;
-
-          const hoverTitle = s.status === 'OCCUPIED' ? 
-            `Bấm để chọn container ${s.container_no} cần chuyển` : 
-            `Bấm để chọn ô trống ${s.slot_id} làm đích đến`;
-
-          grid.innerHTML += `
-            <div ${clickHandler} title="${hoverTitle}" class="p-1.5 rounded border text-[10px] font-mono h-12 flex flex-col justify-between cursor-pointer transition-all ${color} ${ringClass}">
-              <div class="flex justify-between items-center"><span class="font-bold">${s.slot_id}</span>${s.is_reefer_plug ? '<span title="Ổ cắm 3 pha 380V" class="text-amber-400">⚡</span>' : ''}</div>
-              <div class="font-bold truncate">${s.container_no || '<span class="text-slate-600">TRỐNG</span>'}</div>
-            </div>`;
+      Object.keys(bayMap).sort((a,b) => parseInt(a)-parseInt(b)).forEach(bay => {
+        if (currentBay !== 'ALL' && String(bay) !== String(currentBay)) return;
+        const slotsInBay = bayMap[bay];
+        const slotLookup = {};
+        slotsInBay.forEach(s => {
+          slotLookup[`${s.row}-${s.tier}`] = s;
         });
-        card.appendChild(grid);
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-950 p-3 rounded-xl border border-slate-800 shadow";
+        
+        // Header
+        card.innerHTML = `
+          <div class="text-xs font-bold text-slate-300 mb-2 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-0.5 rounded bg-purple-900/40 text-purple-300 border border-purple-700/50">BAY ${bay.padStart(2,'0')}</span>
+              <span class="text-slate-400 text-[11px]">Mặt cắt ngang bãi (Xếp chồng Tầng 1 ➔ 4 theo chiều dọc)</span>
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono">T4 (Đỉnh) ➔ T1 (Mặt Đất)</span>
+          </div>
+        `;
+
+        const bayBox = document.createElement('div');
+        bayBox.className = "bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80";
+
+        // Row Headers (Dãy 01, Dãy 02, Dãy 03, Dãy 04)
+        let headerHtml = `
+          <div class="grid grid-cols-[42px_repeat(4,1fr)] gap-2 mb-1.5 text-center text-[10px] font-bold text-slate-400">
+            <div class="text-slate-500 flex items-center justify-center font-mono">TẦNG</div>
+            <div class="bg-slate-800/70 py-1 rounded border border-slate-700/60">DÃY 01 (Row 01)</div>
+            <div class="bg-slate-800/70 py-1 rounded border border-slate-700/60">DÃY 02 (Row 02)</div>
+            <div class="bg-slate-800/70 py-1 rounded border border-slate-700/60">DÃY 03 (Row 03)</div>
+            <div class="bg-slate-800/70 py-1 rounded border border-slate-700/60 text-cyan-300">DÃY 04 (⚡ LẠNH)</div>
+          </div>
+        `;
+        bayBox.innerHTML = headerHtml;
+
+        const tiersContainer = document.createElement('div');
+        tiersContainer.className = "space-y-1.5";
+
+        // Tiers from 4 down to 1 (Top of stack down to ground)
+        for (let tier = 4; tier >= 1; tier--) {
+          const tierRow = document.createElement('div');
+          tierRow.className = "grid grid-cols-[42px_repeat(4,1fr)] gap-2";
+
+          // Tier indicator badge
+          const tierLabel = document.createElement('div');
+          tierLabel.className = "flex flex-col items-center justify-center rounded bg-slate-800/50 border border-slate-700/50 text-[10px] font-mono font-bold " + 
+            (tier === 1 ? "text-amber-400 border-amber-500/40 bg-amber-500/10" : (tier === 4 ? "text-purple-300" : "text-slate-400"));
+          tierLabel.innerHTML = `<span>T${tier}</span><span class="text-[8px] text-slate-500">${tier === 1 ? 'ĐÁY' : (tier === 4 ? 'ĐỈNH' : '')}</span>`;
+          tierRow.appendChild(tierLabel);
+
+          // 4 slots across rows 1 to 4
+          for (let row = 1; row <= 4; row++) {
+            const s = slotLookup[`${row}-${tier}`];
+            if (!s) {
+              const emptyBox = document.createElement('div');
+              emptyBox.className = "p-1.5 rounded border border-slate-800 bg-slate-950";
+              tierRow.appendChild(emptyBox);
+              continue;
+            }
+
+            let color = "bg-slate-900/90 border-slate-800 text-slate-500 hover:border-slate-600 hover:bg-slate-800/50";
+            let isSelectedTarget = (s.slot_id === selectedTargetSlot);
+            let isSelectedCont = (s.container_no && s.container_no === selectedContainerNo);
+
+            if (s.status === 'OCCUPIED') {
+              if (s.container_no.startsWith('TCKU')) color = "bg-cyan-600/20 border-cyan-500 text-cyan-200 hover:border-cyan-400 shadow-sm";
+              else if (s.container_no.startsWith('CMAU')) color = "bg-rose-600/20 border-rose-500 text-rose-200 hover:border-rose-400 shadow-sm";
+              else color = "bg-blue-600/20 border-blue-500 text-blue-200 hover:border-blue-400 shadow-sm";
+            }
+
+            let ringClass = "";
+            if (isSelectedCont) ringClass = "ring-2 ring-amber-400 scale-[1.02] shadow-lg shadow-amber-500/20 z-10";
+            else if (isSelectedTarget) ringClass = "ring-2 ring-emerald-400 bg-emerald-500/20 scale-[1.02] shadow-lg shadow-emerald-500/20 z-10";
+
+            const clickHandler = s.status === 'OCCUPIED' ? 
+              `onclick="selectContainerForMove('${s.container_no}')"` : 
+              `onclick="selectTargetSlot('${s.slot_id}')"`;
+
+            const hoverTitle = s.status === 'OCCUPIED' ? 
+              `Bấm để chọn container ${s.container_no} cần chuyển` : 
+              `Bấm để chọn ô trống ${s.slot_id} làm đích đến`;
+
+            // Info details for occupied container
+            let detailsHtml = '<span class="text-slate-600 italic">-- TRỐNG --</span>';
+            if (s.status === 'OCCUPIED') {
+              const contData = containersCache[s.container_no];
+              const weightStr = contData ? `${(contData.weight_kg/1000).toFixed(1)}T` : '';
+              detailsHtml = `<span class="font-bold font-mono tracking-tight text-white">${s.container_no}</span>` + 
+                (weightStr ? `<span class="text-[9px] text-slate-400 ml-1">(${weightStr})</span>` : '');
+            }
+
+            const slotEl = document.createElement('div');
+            slotEl.innerHTML = `
+              <div ${clickHandler} title="${hoverTitle}" class="p-1.5 rounded border text-[10px] font-mono h-14 flex flex-col justify-between cursor-pointer transition-all ${color} ${ringClass}">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-[9px] ${s.status === 'OCCUPIED' ? 'text-slate-300' : 'text-slate-500'}">${s.slot_id}</span>
+                  ${s.is_reefer_plug ? '<span title="Ổ cắm điện 3 pha 380V" class="text-amber-400 font-bold text-xs">⚡</span>' : ''}
+                </div>
+                <div class="truncate text-[10px]">${detailsHtml}</div>
+              </div>
+            `;
+            tierRow.appendChild(slotEl.firstElementChild);
+          }
+          tiersContainer.appendChild(tierRow);
+        }
+
+        bayBox.appendChild(tiersContainer);
+
+        // Ground pavement footer
+        const groundFooter = document.createElement('div');
+        groundFooter.className = "mt-2 pt-1 border-t-2 border-dashed border-amber-600/40 flex items-center justify-center space-x-2 text-[10px] text-amber-500/70 font-mono";
+        groundFooter.innerHTML = `<span>▲ MẶT ĐẤT BÃI CẢNG (GROUND LEVEL) ▲</span>`;
+        bayBox.appendChild(groundFooter);
+
+        card.appendChild(bayBox);
         container.appendChild(card);
       });
       loadAlerts();
@@ -335,6 +459,33 @@
       loadBlock(currentBlock);
     }
 
+    async function resetYard() {
+      try {
+        const res = await fetch('/api/v1/yard/reset', { method: 'POST' });
+        const data = await res.json();
+        alert(`[KHÔI PHỤC BÃI BAN ĐẦU]\n${data.message}`);
+        await loadContainers();
+        loadBlock(currentBlock);
+      } catch (e) {
+        alert("Lỗi khi reset bãi: " + e.message);
+      }
+    }
+
+    async function testFloatingMove() {
+      // Thử di chuyển container TCKU9012384 từ tầng 1 (A-01-04-1) lên tầng 2 (A-01-04-2) của chính nó
+      const res = await fetch('/api/v1/yard/atomic-move', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ container_no: "TCKU9012384", target_slot_id: "A-01-04-2", operator: "RTG-01" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`[KẾT QUẢ]: ${data.message}`);
+      } else {
+        alert(`[CHẶN VI PHẠM TRỌNG LỰC THÀNH CÔNG]\nMã lỗi: ${data.code}\nChi tiết: ${data.message}`);
+      }
+      loadBlock(currentBlock);
+    }
+
     function testRaceCondition() {
       alert("[409 CONFLICT - DISTRIBUTED REDIS LOCK]\nXung đột tranh chấp! Ô A-01-03-1 đang bị khóa bởi RTG-01. Yêu cầu của RTG-02 bị từ chối an toàn!");
     }
@@ -359,10 +510,319 @@
       loadBlock(currentBlock);
     }
 
+    // --- CRUD FUNCTIONS FOR CONTAINERS ---
+    function openAddContainerModal() {
+      document.getElementById('add-cont-no').value = '';
+      document.getElementById('add-cont-slot').value = selectedTargetSlot || '';
+      document.getElementById('add-cont-weight').value = '22000';
+      document.getElementById('add-cont-iso').value = '40HC';
+      document.getElementById('add-cont-type').value = 'DRY';
+      toggleAddTypeFields();
+      document.getElementById('add-container-modal').classList.remove('hidden');
+    }
+
+    function closeAddContainerModal() {
+      document.getElementById('add-container-modal').classList.add('hidden');
+    }
+
+    function toggleAddTypeFields() {
+      const type = document.getElementById('add-cont-type').value;
+      document.getElementById('add-reefer-fields').classList.toggle('hidden', type !== 'REEFER');
+      document.getElementById('add-hazardous-fields').classList.toggle('hidden', type !== 'HAZARDOUS');
+      if (type === 'REEFER') {
+        document.getElementById('add-cont-iso').value = '40RH';
+      }
+    }
+
+    async function submitAddContainer(e) {
+      e.preventDefault();
+      const containerNo = document.getElementById('add-cont-no').value.trim().toUpperCase();
+      const isoType = document.getElementById('add-cont-iso').value;
+      const weightKg = parseFloat(document.getElementById('add-cont-weight').value);
+      const cargoType = document.getElementById('add-cont-type').value;
+      const slotId = document.getElementById('add-cont-slot').value.trim().toUpperCase() || null;
+
+      const payload = {
+        container_no: containerNo,
+        iso_type: isoType,
+        weight_kg: weightKg,
+        is_reefer: (cargoType === 'REEFER'),
+        set_temp_celsius: (cargoType === 'REEFER') ? parseFloat(document.getElementById('add-cont-temp').value) : null,
+        is_hazardous: (cargoType === 'HAZARDOUS'),
+        imdg_class: (cargoType === 'HAZARDOUS') ? document.getElementById('add-cont-imdg').value : null,
+        slot_id: slotId
+      };
+
+      try {
+        const res = await fetch('/api/v1/yard/containers', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`[THÀNH CÔNG]\n${data.message}`);
+          closeAddContainerModal();
+          await loadContainers(containerNo);
+          loadBlock(currentBlock);
+        } else {
+          alert(`[LỖI THÊM CONTAINER - ${data.code}]\n${data.message}`);
+        }
+      } catch (err) {
+        alert("Lỗi kết nối: " + err.message);
+      }
+    }
+
+    function openEditContainerModal() {
+      const selectNo = document.getElementById('move-container-no').value;
+      if (!selectNo || !containersCache[selectNo]) {
+        alert("Vui lòng chọn một container trên danh sách để sửa!");
+        return;
+      }
+      const c = containersCache[selectNo];
+      document.getElementById('edit-cont-no').value = c.container_no;
+      document.getElementById('edit-cont-slot').value = c.slot_id || 'Chưa hạ bãi';
+      document.getElementById('edit-cont-iso').value = c.iso_type;
+      document.getElementById('edit-cont-weight').value = c.weight_kg;
+
+      let cargoType = 'DRY';
+      if (c.is_reefer) cargoType = 'REEFER';
+      else if (c.is_hazardous) cargoType = 'HAZARDOUS';
+      document.getElementById('edit-cont-type').value = cargoType;
+
+      if (c.is_reefer) {
+        document.getElementById('edit-cont-temp').value = c.set_temp_celsius || -18.0;
+      }
+      if (c.is_hazardous && c.imdg_class) {
+        document.getElementById('edit-cont-imdg').value = c.imdg_class;
+      }
+      toggleEditTypeFields();
+      document.getElementById('edit-container-modal').classList.remove('hidden');
+    }
+
+    function closeEditContainerModal() {
+      document.getElementById('edit-container-modal').classList.add('hidden');
+    }
+
+    function toggleEditTypeFields() {
+      const type = document.getElementById('edit-cont-type').value;
+      document.getElementById('edit-reefer-fields').classList.toggle('hidden', type !== 'REEFER');
+      document.getElementById('edit-hazardous-fields').classList.toggle('hidden', type !== 'HAZARDOUS');
+    }
+
+    async function submitEditContainer(e) {
+      e.preventDefault();
+      const containerNo = document.getElementById('edit-cont-no').value;
+      const isoType = document.getElementById('edit-cont-iso').value;
+      const weightKg = parseFloat(document.getElementById('edit-cont-weight').value);
+      const cargoType = document.getElementById('edit-cont-type').value;
+
+      const payload = {
+        iso_type: isoType,
+        weight_kg: weightKg,
+        is_reefer: (cargoType === 'REEFER'),
+        set_temp_celsius: (cargoType === 'REEFER') ? parseFloat(document.getElementById('edit-cont-temp').value) : null,
+        is_hazardous: (cargoType === 'HAZARDOUS'),
+        imdg_class: (cargoType === 'HAZARDOUS') ? document.getElementById('edit-cont-imdg').value : null
+      };
+
+      try {
+        const res = await fetch(`/api/v1/yard/containers/${containerNo}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`[CẬP NHẬT THÀNH CÔNG]\n${data.message}`);
+          closeEditContainerModal();
+          await loadContainers(containerNo);
+          loadBlock(currentBlock);
+        } else {
+          alert(`[LỖI SỬA CONTAINER - ${data.code}]\n${data.message}`);
+        }
+      } catch (err) {
+        alert("Lỗi kết nối: " + err.message);
+      }
+    }
+
+    async function handleDeleteContainer() {
+      const selectNo = document.getElementById('move-container-no').value;
+      if (!selectNo) {
+        alert("Vui lòng chọn một container để xóa!");
+        return;
+      }
+      const c = containersCache[selectNo];
+      const slotStr = c && c.slot_id ? ` (đang ở ô ${c.slot_id})` : '';
+      if (!confirm(`Bạn có chắc chắn muốn XÓA container ${selectNo}${slotStr} khỏi hệ thống và bãi không?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/v1/yard/containers/${selectNo}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`[ĐÃ XÓA THÀNH CÔNG]\n${data.message}`);
+          selectedContainerNo = null;
+          await loadContainers();
+          loadBlock(currentBlock);
+        } else {
+          alert(`[KHÔNG THỂ XÓA - ${data.code}]\n${data.message}`);
+        }
+      } catch (err) {
+        alert("Lỗi kết nối: " + err.message);
+      }
+    }
+
     window.onload = () => {
       loadContainers();
       loadBlock('A');
     };
   </script>
+
+  <!-- MODAL THÊM CONTAINER MỚI -->
+  <div id="add-container-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-square-plus text-purple-400"></i>
+          <span>THÊM CONTAINER MỚI VÀO CẢNG</span>
+        </h3>
+        <button onclick="closeAddContainerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form onsubmit="submitAddContainer(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Mã Container (ISO 6346 - 4 chữ + 7 số)</label>
+          <input type="text" id="add-cont-no" required placeholder="VD: TCKU9012384" maxlength="11" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono uppercase focus:border-purple-500 outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Kích Cỡ ISO</label>
+            <select id="add-cont-iso" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white outline-none focus:border-purple-500">
+              <option value="20GP">20GP (20ft Thường)</option>
+              <option value="40GP">40GP (40ft Thường)</option>
+              <option value="40HC" selected>40HC (40ft Cao)</option>
+              <option value="40RH">40RH (40ft Lạnh)</option>
+              <option value="45HC">45HC (45ft Siêu Cao)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Trọng Lượng (kg)</label>
+            <input type="number" id="add-cont-weight" required min="100" max="45000" value="22500" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono outline-none focus:border-purple-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Phân Loại Hàng Hóa</label>
+          <select id="add-cont-type" onchange="toggleAddTypeFields()" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white outline-none focus:border-purple-500">
+            <option value="DRY">Container Khô (Dry Cargo)</option>
+            <option value="REEFER">Container Lạnh (Reefer - Cần điện 3 pha)</option>
+            <option value="HAZARDOUS">Hàng Nguy Hiểm (IMDG Class)</option>
+          </select>
+        </div>
+
+        <div id="add-reefer-fields" class="hidden p-2.5 rounded bg-cyan-950/30 border border-cyan-800/40">
+          <label class="block text-cyan-300 font-semibold mb-1">Nhiệt Độ Cài Đặt (°C)</label>
+          <input type="number" step="0.5" id="add-cont-temp" value="-18.0" class="w-full bg-slate-950 border border-cyan-700 rounded p-1.5 text-cyan-200 font-mono outline-none">
+          <p class="text-[10px] text-cyan-400 mt-1">Lưu ý: Chỉ xếp được vào ô có ổ cắm 3 pha 380V (Dãy 04, Tầng 1-3).</p>
+        </div>
+
+        <div id="add-hazardous-fields" class="hidden p-2.5 rounded bg-rose-950/30 border border-rose-800/40">
+          <label class="block text-rose-300 font-semibold mb-1">Phân Nhóm Nguy Hiểm IMDG</label>
+          <select id="add-cont-imdg" class="w-full bg-slate-950 border border-rose-700 rounded p-1.5 text-rose-200 outline-none">
+            <option value="Class 3 - Flammable Liquids">Class 3 - Chất lỏng dễ cháy (Flammable Liquids)</option>
+            <option value="Class 6 - Toxic Substances">Class 6 - Chất độc hại (Toxic Substances)</option>
+            <option value="Class 8 - Corrosive Substances">Class 8 - Chất ăn mòn (Corrosive Substances)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Vị Trí Xếp Bãi Ban Đầu (Tùy chọn)</label>
+          <input type="text" id="add-cont-slot" placeholder="VD: A-01-03-1 (để trống nếu chưa hạ bãi)" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono uppercase outline-none focus:border-purple-500">
+          <p class="text-[10px] text-slate-500 mt-1">Hệ thống AI Stacking sẽ tự động kiểm tra quy tắc an toàn trọng lực và loại hàng khi xếp bãi.</p>
+        </div>
+
+        <div class="flex space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeAddContainerModal()" class="flex-1 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">Hủy</button>
+          <button type="submit" class="flex-1 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold shadow">Xác Nhận Thêm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL SỬA CONTAINER -->
+  <div id="edit-container-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-pen-to-square text-amber-400"></i>
+          <span>CẬP NHẬT THÔNG TIN CONTAINER</span>
+        </h3>
+        <button onclick="closeEditContainerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form onsubmit="submitEditContainer(event)" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Mã Container</label>
+            <input type="text" id="edit-cont-no" readonly class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-amber-400 font-mono font-bold cursor-not-allowed">
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Vị Trí Hiện Tại</label>
+            <input type="text" id="edit-cont-slot" readonly class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-300 font-mono cursor-not-allowed">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Kích Cỡ ISO</label>
+            <select id="edit-cont-iso" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white outline-none focus:border-purple-500">
+              <option value="20GP">20GP (20ft Thường)</option>
+              <option value="40GP">40GP (40ft Thường)</option>
+              <option value="40HC">40HC (40ft Cao)</option>
+              <option value="40RH">40RH (40ft Lạnh)</option>
+              <option value="45HC">45HC (45ft Siêu Cao)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Trọng Lượng (kg)</label>
+            <input type="number" id="edit-cont-weight" required min="100" max="45000" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono outline-none focus:border-purple-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Phân Loại Hàng Hóa</label>
+          <select id="edit-cont-type" onchange="toggleEditTypeFields()" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white outline-none focus:border-purple-500">
+            <option value="DRY">Container Khô (Dry Cargo)</option>
+            <option value="REEFER">Container Lạnh (Reefer - Cần điện 3 pha)</option>
+            <option value="HAZARDOUS">Hàng Nguy Hiểm (IMDG Class)</option>
+          </select>
+        </div>
+
+        <div id="edit-reefer-fields" class="hidden p-2.5 rounded bg-cyan-950/30 border border-cyan-800/40">
+          <label class="block text-cyan-300 font-semibold mb-1">Nhiệt Độ Cài Đặt (°C)</label>
+          <input type="number" step="0.5" id="edit-cont-temp" class="w-full bg-slate-950 border border-cyan-700 rounded p-1.5 text-cyan-200 font-mono outline-none">
+        </div>
+
+        <div id="edit-hazardous-fields" class="hidden p-2.5 rounded bg-rose-950/30 border border-rose-800/40">
+          <label class="block text-rose-300 font-semibold mb-1">Phân Nhóm Nguy Hiểm IMDG</label>
+          <select id="edit-cont-imdg" class="w-full bg-slate-950 border border-rose-700 rounded p-1.5 text-rose-200 outline-none">
+            <option value="Class 3 - Flammable Liquids">Class 3 - Chất lỏng dễ cháy (Flammable Liquids)</option>
+            <option value="Class 6 - Toxic Substances">Class 6 - Chất độc hại (Toxic Substances)</option>
+            <option value="Class 8 - Corrosive Substances">Class 8 - Chất ăn mòn (Corrosive Substances)</option>
+          </select>
+        </div>
+
+        <div class="flex space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeEditContainerModal()" class="flex-1 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">Hủy</button>
+          <button type="submit" class="flex-1 py-2 rounded bg-amber-600 hover:bg-amber-500 text-white font-bold shadow">Lưu Thay Đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

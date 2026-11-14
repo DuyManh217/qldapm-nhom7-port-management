@@ -95,10 +95,16 @@
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-slate-400">Chọn Tàu Quốc Tế</label>
-            <button type="button" onclick="handleDeleteSelectedVessel()" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold flex items-center space-x-1" title="Xóa tàu này khỏi danh mục hệ thống">
-              <i class="fa-solid fa-trash-can"></i>
-              <span>Xóa Tàu Này</span>
-            </button>
+            <div class="flex items-center space-x-2">
+              <button type="button" onclick="openEditVesselModal()" class="text-amber-400 hover:text-amber-300 text-[10px] font-bold flex items-center space-x-1" title="Sửa thông số kỹ thuật tàu này">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Sửa Tàu</span>
+              </button>
+              <button type="button" onclick="handleDeleteSelectedVessel()" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold flex items-center space-x-1" title="Xóa tàu này khỏi danh mục hệ thống">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>Xóa Tàu</span>
+              </button>
+            </div>
           </div>
           <select id="vessel-imo" onchange="onVesselSelected()" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
             <option value="">-- Đang tải danh sách tàu... --</option>
@@ -196,6 +202,74 @@
           <button type="button" onclick="closeAddVesselModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-xs">Hủy</button>
           <button type="submit" id="save-vessel-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs shadow flex items-center space-x-1">
             <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Tàu Vào Hệ Thống
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL SỬA THÔNG TIN TÀU -->
+  <div id="edit-vessel-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i class="fa-solid fa-pen-to-square text-sm"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white">CẬP NHẬT THÔNG TIN TÀU</h3>
+        </div>
+        <button onclick="closeEditVesselModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form onsubmit="handleEditVessel(event)" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Mã IMO Quốc Tế</label>
+            <input type="text" id="edit-vessel-imo" readonly class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-amber-400 font-mono font-bold cursor-not-allowed">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Tên Tàu *</label>
+            <input type="text" id="edit-vessel-name" required class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white uppercase focus:border-amber-500 outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Hãng Tàu Khai Thác</label>
+          <input type="text" id="edit-vessel-carrier" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white focus:border-amber-500 outline-none">
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">LOA (m) *</label>
+            <input type="number" step="0.1" id="edit-vessel-loa" required class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Beam (m) *</label>
+            <input type="number" step="0.1" id="edit-vessel-beam" required class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Draft Max (m) *</label>
+            <input type="number" step="0.1" id="edit-vessel-draft" required class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Trọng Tải DWT (Tấn)</label>
+            <input type="number" id="edit-vessel-dwt" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Sức Chở (TEU)</label>
+            <input type="number" id="edit-vessel-teu" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
+          </div>
+        </div>
+
+        <div id="edit-modal-alert-box" class="hidden p-2 rounded text-xs"></div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeEditVesselModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-xs">Hủy</button>
+          <button type="submit" id="update-vessel-btn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs shadow flex items-center space-x-1">
+            <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Thay Đổi
           </button>
         </div>
       </form>
@@ -331,6 +405,78 @@
       } catch (err) {
         box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
         box.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
+      }
+    }
+
+    function openEditVesselModal() {
+      const imo = document.getElementById('vessel-imo').value;
+      if (!imo || imo === '123456') {
+        alert('Vui lòng chọn một con tàu hợp lệ trong danh sách để sửa!');
+        return;
+      }
+      const v = vesselsCache[imo];
+      if (!v) {
+        alert('Không tìm thấy thông tin tàu đã chọn!');
+        return;
+      }
+
+      document.getElementById('edit-vessel-imo').value = v.imo;
+      document.getElementById('edit-vessel-name').value = v.name;
+      document.getElementById('edit-vessel-carrier').value = v.carrier;
+      document.getElementById('edit-vessel-loa').value = v.loa;
+      document.getElementById('edit-vessel-beam').value = v.beam;
+      document.getElementById('edit-vessel-draft').value = v.max_draft;
+      document.getElementById('edit-vessel-dwt').value = v.dwt || 35000;
+      document.getElementById('edit-vessel-teu').value = v.teu || 2500;
+
+      const alertBox = document.getElementById('edit-modal-alert-box');
+      alertBox.className = 'hidden p-2 rounded text-xs';
+      alertBox.innerHTML = '';
+
+      document.getElementById('edit-vessel-modal').classList.remove('hidden');
+    }
+
+    function closeEditVesselModal() {
+      document.getElementById('edit-vessel-modal').classList.add('hidden');
+    }
+
+    async function handleEditVessel(e) {
+      e.preventDefault();
+      const imo = document.getElementById('edit-vessel-imo').value.trim();
+      const name = document.getElementById('edit-vessel-name').value.trim();
+      const carrier = document.getElementById('edit-vessel-carrier').value.trim() || 'Tự do';
+      const loa = parseFloat(document.getElementById('edit-vessel-loa').value);
+      const beam = parseFloat(document.getElementById('edit-vessel-beam').value);
+      const max_draft = parseFloat(document.getElementById('edit-vessel-draft').value);
+      const dwt = parseInt(document.getElementById('edit-vessel-dwt').value) || 30000;
+      const teu = parseInt(document.getElementById('edit-vessel-teu').value) || 2000;
+
+      const alertBox = document.getElementById('edit-modal-alert-box');
+      alertBox.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
+
+      try {
+        const res = await fetch(`/api/v1/vessels/${imo}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ name, carrier, loa, beam, max_draft, dwt, teu })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          closeEditVesselModal();
+          await loadVessels(imo);
+          loadPortCalls();
+          const box = document.getElementById('vessel-alert-box');
+          box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300');
+          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
+          box.innerHTML = `<b>✓ CẬP NHẬT THÔNG TIN TÀU THÀNH CÔNG:</b> ${data.message}`;
+        } else {
+          alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+          alertBox.innerHTML = `<b>✗ LỖI:</b> ${data.message}`;
+        }
+      } catch (err) {
+        alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
+        alertBox.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
       }
     }
 

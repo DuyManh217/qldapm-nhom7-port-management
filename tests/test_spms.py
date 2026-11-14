@@ -235,9 +235,9 @@ class SPMSTestSuite(unittest.TestCase):
         self.assertEqual(data3["code"], "ERR_VESSEL_CURRENTLY_DOCKED")
 
     def test_21_manual_atomic_move_success(self):
-        # Move container EMCU8921470 from A-01-01-1 to A-01-02-1
+        # Move container MSCU1294801 (top container at A-01-01-2) to empty ground slot A-01-02-1
         payload = {
-            "container_no": "EMCU8921470",
+            "container_no": "MSCU1294801",
             "target_slot_id": "A-01-02-1",
             "operator": "RTG-01"
         }
@@ -253,12 +253,100 @@ class SPMSTestSuite(unittest.TestCase):
         self.assertEqual(res1.status_code, 404)
 
         # Non-existent slot -> 404
-        res2 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "EMCU8921470", "target_slot_id": "Z-99-99-9"})
+        res2 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "MSCU1294801", "target_slot_id": "Z-99-99-9"})
         self.assertEqual(res2.status_code, 404)
 
         # Stacking violation: place reefer on non-reefer slot -> 422
         res3 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "TCKU9012384", "target_slot_id": "A-02-01-1"})
         self.assertEqual(res3.status_code, 422)
+
+        # Stacking violation: attempt to lift bottom container EMCU8921470 while MSCU1294801 is on top -> 422
+        res4 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "EMCU8921470", "target_slot_id": "A-01-03-1"})
+        self.assertEqual(res4.status_code, 422)
+        self.assertIn("đang bị container ở tầng trên", res4.get_json()["message"])
+
+        # Stacking violation: attempt to self-stack on tier 2 (floating) -> 422
+        res5 = self.client.post("/api/v1/yard/atomic-move", json={"container_no": "TCKU9012384", "target_slot_id": "A-01-04-2"})
+        self.assertEqual(res5.status_code, 422)
+        self.assertIn("vị trí của chính nó", res5.get_json()["message"])
+
+    def test_23_create_container_success(self):
+        # Create a new container on an empty ground slot
+        payload = {
+            "container_no": "NEWU1234567",
+            "iso_type": "40HC",
+            "weight_kg": 24000,
+            "is_reefer": False,
+            "slot_id": "A-01-03-1"
+        }
+        res = self.client.post("/api/v1/yard/containers", json=payload)
+        self.assertEqual(res.status_code, 201)
+        data = res.get_json()
+        self.assertEqual(data["code"], "SUCCESS")
+        self.assertEqual(data["data"]["container_no"], "NEWU1234567")
+
+    def test_24_create_container_validation_errors(self):
+        # Invalid format container number
+        res1 = self.client.post("/api/v1/yard/containers", json={"container_no": "A"})
+        self.assertEqual(res1.status_code, 400)
+
+        # Duplicate container
+        res2 = self.client.post("/api/v1/yard/containers", json={"container_no": "EMCU8921470"})
+        self.assertEqual(res2.status_code, 409)
+
+        # Stacking violation: reefer on non-reefer slot
+        res3 = self.client.post("/api/v1/yard/containers", json={
+            "container_no": "REEF1111111",
+            "iso_type": "40RH",
+            "weight_kg": 20000,
+            "is_reefer": True,
+            "slot_id": "A-01-02-1" # Not a reefer slot
+        })
+        self.assertEqual(res3.status_code, 422)
+
+    def test_25_update_container(self):
+        payload = {
+            "iso_type": "40GP",
+            "weight_kg": 25000
+        }
+        res = self.client.put("/api/v1/yard/containers/EMCU8921470", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["data"]["iso_type"], "40GP")
+        self.assertEqual(data["data"]["weight_kg"], 25000)
+
+    def test_26_delete_container(self):
+        # Blocked: attempt to delete bottom container EMCU8921470 while MSCU1294801 is on top
+        res1 = self.client.delete("/api/v1/yard/containers/EMCU8921470")
+        self.assertEqual(res1.status_code, 422)
+        self.assertIn("đang bị container", res1.get_json()["message"])
+
+        # Success: delete top container MSCU1294801
+        res2 = self.client.delete("/api/v1/yard/containers/MSCU1294801")
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.get_json()["code"], "SUCCESS")
+
+        # Now bottom container can be deleted
+        res3 = self.client.delete("/api/v1/yard/containers/EMCU8921470")
+        self.assertEqual(res3.status_code, 200)
+
+    def test_27_update_vessel(self):
+        payload = {
+            "name": "EVER GIVEN RENAMED",
+            "loa": 400.0,
+            "max_draft": 16.5,
+            "carrier": "Evergreen Marine Corp"
+        }
+        res = self.client.put("/api/v1/vessels/9321483", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["code"], "SUCCESS")
+        self.assertEqual(data["data"]["name"], "EVER GIVEN RENAMED")
+        self.assertEqual(data["data"]["max_draft"], 16.5)
+
+        # Updating non-existent vessel -> 404
+        res2 = self.client.put("/api/v1/vessels/9999999", json={"name": "FAKE"})
+        self.assertEqual(res2.status_code, 404)
 
 if __name__ == "__main__":
     unittest.main()

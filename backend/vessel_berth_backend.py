@@ -123,6 +123,60 @@ def add_vessel():
         "data": new_vessel
     }), 201
 
+@vessel_berth_bp.route("/api/v1/vessels/<imo>", methods=["PUT"])
+def update_vessel(imo):
+    imo = str(imo).strip()
+    vessel = VESSELS.get(imo)
+    if not vessel:
+        return jsonify({"code": "ERR_VESSEL_NOT_FOUND", "message": f"Không tìm thấy tàu có mã IMO: {imo}"}), 404
+
+    data = request.json or {}
+    
+    if "name" in data:
+        name = str(data["name"]).strip().upper()
+        if not name:
+            return jsonify({"code": "ERR_INVALID_NAME", "message": "Tên tàu không được để trống!"}), 400
+        vessel["name"] = name
+        for call in PORT_CALLS:
+            if call["imo"] == imo:
+                call["vessel_name"] = name
+
+    if "carrier" in data:
+        vessel["carrier"] = str(data["carrier"]).strip()
+        for call in PORT_CALLS:
+            if call["imo"] == imo:
+                call["carrier"] = vessel["carrier"]
+
+    try:
+        if "loa" in data:
+            loa = float(data["loa"])
+            if loa <= 0: return jsonify({"code": "ERR_INVALID_DIMENSIONS", "message": "Chiều dài LOA phải lớn hơn 0!"}), 400
+            vessel["loa"] = loa
+        if "beam" in data:
+            beam = float(data["beam"])
+            if beam <= 0: return jsonify({"code": "ERR_INVALID_DIMENSIONS", "message": "Chiều rộng Beam phải lớn hơn 0!"}), 400
+            vessel["beam"] = beam
+        if "max_draft" in data:
+            max_draft = float(data["max_draft"])
+            if max_draft <= 0: return jsonify({"code": "ERR_INVALID_DIMENSIONS", "message": "Mớn nước Max Draft phải lớn hơn 0!"}), 400
+            vessel["max_draft"] = max_draft
+        if "dwt" in data:
+            dwt = int(data["dwt"])
+            if dwt <= 0: return jsonify({"code": "ERR_INVALID_SPECS", "message": "Trọng tải DWT phải lớn hơn 0!"}), 400
+            vessel["dwt"] = dwt
+        if "teu" in data:
+            teu = int(data["teu"])
+            if teu <= 0: return jsonify({"code": "ERR_INVALID_SPECS", "message": "Sức chở TEU phải lớn hơn 0!"}), 400
+            vessel["teu"] = teu
+    except (ValueError, TypeError):
+        return jsonify({"code": "ERR_INVALID_SPECS", "message": "Thông số kỹ thuật tàu (LOA, Beam, Draft, DWT, TEU) phải là số hợp lệ!"}), 400
+
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Cập nhật thông tin tàu {vessel['name']} (IMO: {imo}) thành công!",
+        "data": vessel
+    }), 200
+
 @vessel_berth_bp.route("/api/v1/berths", methods=["GET"])
 def get_berths():
     return jsonify(BERTHS)
