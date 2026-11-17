@@ -11,13 +11,24 @@ if backend_dir not in sys.path:
 
 from app import app
 from vessel_berth_backend import check_berth_collision
-from yard_container_backend import init_yard_data, evaluate_stacking_rules
+from yard_container_backend import evaluate_stacking_rules
+from db import get_db, seed_data
 
 class SPMSTestSuite(unittest.TestCase):
     def setUp(self):
         self.app = app
         self.client = self.app.test_client()
-        init_yard_data()
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM tbl_yard_alerts;")
+        cur.execute("DELETE FROM tbl_containers;")
+        cur.execute("DELETE FROM tbl_yard_slots;")
+        cur.execute("DELETE FROM tbl_port_calls;")
+        cur.execute("DELETE FROM tbl_vessels;")
+        cur.execute("DELETE FROM tbl_berths;")
+        conn.commit()
+        seed_data(conn)
+        conn.close()
 
     def test_01_index_route(self):
         response = self.client.get("/")
@@ -133,8 +144,8 @@ class SPMSTestSuite(unittest.TestCase):
         response = self.client.post("/api/v1/tests/run-all")
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
-        self.assertEqual(data["total"], 15)
-        self.assertEqual(data["passed"], 15)
+        self.assertGreaterEqual(data["total"], 25)
+        self.assertEqual(data["passed"], data["total"])
 
     def test_16_add_vessel_success(self):
         payload = {
@@ -347,6 +358,33 @@ class SPMSTestSuite(unittest.TestCase):
         # Updating non-existent vessel -> 404
         res2 = self.client.put("/api/v1/vessels/9999999", json={"name": "FAKE"})
         self.assertEqual(res2.status_code, 404)
+
+    def test_28_vessel_kpi_endpoint(self):
+        res = self.client.get("/api/v1/vessel/kpi")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["total_berth_meters"], 2040.0)
+        self.assertEqual(data["total_berths"], 6)
+        self.assertGreaterEqual(data["active_port_calls"], 0)
+        self.assertIn("utilization_percent", data)
+        self.assertGreater(data["moves_rate_per_hour"], 0)
+
+    def test_29_yard_kpi_endpoint(self):
+        res = self.client.get("/api/v1/yard/kpi")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertGreater(data["total_slots"], 0)
+        self.assertGreaterEqual(data["occupied_slots"], 0)
+        self.assertIn("utilization_percent", data)
+        self.assertEqual(data["rtg_cranes_count"], 174)
+        self.assertIn("distributed_lock_status", data)
+
+    def test_30_simulate_race_condition(self):
+        res = self.client.post("/api/v1/yard/simulate-race-condition")
+        self.assertEqual(res.status_code, 409)
+        data = res.get_json()
+        self.assertEqual(data["code"], "ERR_SLOT_LOCK_CONFLICT")
+        self.assertIn("Xung đột tranh chấp", data["message"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -179,3 +179,7 @@ env/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# SQLite databases (auto-generated on app startup)
+*.db
+*.sqlite3

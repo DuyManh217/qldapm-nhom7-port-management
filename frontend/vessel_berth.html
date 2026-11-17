@@ -24,20 +24,20 @@
   <div class="grid grid-cols-4 gap-4">
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
       <div class="text-xs text-slate-400">Tổng Chiều Dài Cầu Bến</div>
-      <div class="text-xl font-bold text-white mt-1">2.040 m (B1 - B6)</div>
+      <div class="text-xl font-bold text-white mt-1" id="kpi-berth-length">2.040 m (B1 - B6)</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
       <div class="text-xs text-slate-400">Tàu Đang Cập Bến</div>
-      <div class="text-xl font-bold text-emerald-400 mt-1" id="vessel-count">3 Tàu</div>
+      <div class="text-xl font-bold text-emerald-400 mt-1" id="vessel-count">0 Tàu</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
       <div class="text-xs text-slate-400">Năng Suất Bốc Dỡ</div>
-      <div class="text-xl font-bold text-amber-400 mt-1">32 moves/giờ</div>
+      <div class="text-xl font-bold text-amber-400 mt-1" id="kpi-moves-rate">32 moves/giờ</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
       <div>
-        <div class="text-xs text-slate-400">AI Genetic Solver</div>
-        <div class="text-xl font-bold text-cyan-400 mt-1">Sẵn sàng</div>
+        <div class="text-xs text-slate-400">Hiệu Suất Cầu Bến</div>
+        <div class="text-xl font-bold text-cyan-400 mt-1" id="kpi-utilization">0%</div>
       </div>
       <button onclick="runAIBerthSolver()" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg text-xs font-bold shadow hover:brightness-110">
         <i class="fa-solid fa-microchip mr-1"></i>Chạy AI
@@ -114,12 +114,7 @@
           <div>
             <label class="block text-slate-400 mb-1">Cầu Bến</label>
             <select id="berth-id" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
-              <option value="B1">Cầu bến B1 (16m)</option>
-              <option value="B2">Cầu bến B2 (16m)</option>
-              <option value="B3">Cầu bến B3 (15.5m)</option>
-              <option value="B4">Cầu bến B4 (15.5m)</option>
-              <option value="B5">Cầu bến B5 (15.0m)</option>
-              <option value="B6">Cầu bến B6 (14.5m)</option>
+              <option value="">-- Đang tải danh sách bến... --</option>
             </select>
           </div>
           <div>
@@ -502,6 +497,40 @@
       }
     }
 
+    async function loadBerths() {
+      try {
+        const res = await fetch('/api/v1/berths');
+        const berths = await res.json();
+        const select = document.getElementById('berth-id');
+        select.innerHTML = '';
+        berths.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.berth_id;
+          opt.textContent = `${b.name} (${b.max_draft}m, ${b.start_meter}m-${b.end_meter}m)`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Lỗi khi tải danh mục cầu bến:', err);
+      }
+    }
+
+    async function loadVesselKPIs() {
+      try {
+        const res = await fetch('/api/v1/vessel/kpi');
+        const kpi = await res.json();
+        const berthLenEl = document.getElementById('kpi-berth-length');
+        if (berthLenEl) berthLenEl.innerText = `${kpi.total_berth_meters.toLocaleString('vi-VN')} m (${kpi.total_berths} Bến)`;
+        const vesselCountEl = document.getElementById('vessel-count');
+        if (vesselCountEl) vesselCountEl.innerText = `${kpi.active_port_calls} Tàu`;
+        const movesRateEl = document.getElementById('kpi-moves-rate');
+        if (movesRateEl) movesRateEl.innerText = `${kpi.moves_rate_per_hour} moves/giờ`;
+        const utilEl = document.getElementById('kpi-utilization');
+        if (utilEl) utilEl.innerText = `${kpi.utilization_percent}% (${Math.round(kpi.occupied_meters)}m)`;
+      } catch (err) {
+        console.error('Lỗi khi tải KPI cầu bến:', err);
+      }
+    }
+
     async function loadPortCalls() {
       const res = await fetch('/api/v1/port-calls');
       const calls = await res.json();
@@ -534,7 +563,7 @@
             <div class="text-[9px] text-blue-300">${c.start_meter}m-${c.end_meter}m</div>
           </div>`;
       });
-      document.getElementById('vessel-count').innerText = `${calls.length} Tàu`;
+      await loadVesselKPIs();
     }
 
     async function handleCreatePortCall(e) {
@@ -571,6 +600,7 @@
 
     window.onload = function() {
       loadVessels();
+      loadBerths();
       loadPortCalls();
     };
   </script>

@@ -41,20 +41,20 @@
 
   <div class="grid grid-cols-4 gap-4">
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-      <div class="text-xs text-slate-400">Quy Mô Bãi Khảo Sát</div>
-      <div class="text-xl font-bold text-white mt-1">160 Hecta (Cát Lái)</div>
+      <div class="text-xs text-slate-400">Vị Trí Ô Bãi (3D Grid)</div>
+      <div class="text-xl font-bold text-white mt-1" id="kpi-yard-slots">-- / -- Ô</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-      <div class="text-xs text-slate-400">Đội Cẩu Bãi RTG</div>
-      <div class="text-xl font-bold text-amber-400 mt-1">174 Cẩu</div>
+      <div class="text-xs text-slate-400">Tỷ Lệ Lấp Đầy Bãi</div>
+      <div class="text-xl font-bold text-amber-400 mt-1" id="kpi-yard-utilization">--%</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
       <div class="text-xs text-slate-400">Khóa Phân Tán (Redis Lock)</div>
-      <div class="text-xl font-bold text-emerald-400 mt-1">Pessimistic Lock (ON)</div>
+      <div class="text-xl font-bold text-emerald-400 mt-1" id="kpi-yard-lock">Pessimistic Lock (ON)</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
       <div class="text-xs text-slate-400">Cảnh Báo An Toàn Bãi</div>
-      <div class="text-xl font-bold text-rose-400 mt-1" id="alert-count">1 Active</div>
+      <div class="text-xl font-bold text-rose-400 mt-1" id="alert-count">0 Active</div>
     </div>
   </div>
 
@@ -168,6 +168,7 @@
     let currentBlock = 'A';
     let currentBay = 'ALL';
     let containersCache = {};
+    let currentBlockSlots = [];
     let selectedContainerNo = null;
     let selectedTargetSlot = null;
 
@@ -299,6 +300,7 @@
 
       const res = await fetch(`/api/v1/yard/slots?block=${b}`);
       const slots = await res.json();
+      currentBlockSlots = slots;
       const container = document.getElementById('yard-grid-container');
       container.innerHTML = '';
 
@@ -430,6 +432,23 @@
       loadAlerts();
     }
 
+    async function loadYardKPIs() {
+      try {
+        const res = await fetch('/api/v1/yard/kpi');
+        const kpi = await res.json();
+        const slotsEl = document.getElementById('kpi-yard-slots');
+        if (slotsEl) slotsEl.innerText = `${kpi.occupied_slots} / ${kpi.total_slots} Ô`;
+        const utilEl = document.getElementById('kpi-yard-utilization');
+        if (utilEl) utilEl.innerText = `${kpi.utilization_percent}% (${kpi.active_containers} cont)`;
+        const lockEl = document.getElementById('kpi-yard-lock');
+        if (lockEl) lockEl.innerText = `${kpi.rtg_cranes_count} Cẩu (Lock ON)`;
+        const alertEl = document.getElementById('alert-count');
+        if (alertEl) alertEl.innerText = `${kpi.alert_count} Active`;
+      } catch (err) {
+        console.error('Lỗi khi tải KPI bãi:', err);
+      }
+    }
+
     async function loadAlerts() {
       const res = await fetch('/api/v1/yard/alerts');
       const alerts = await res.json();
@@ -442,16 +461,24 @@
             <div class="mt-0.5 leading-snug">${a.message}</div>
           </div>`;
       });
-      const countEl = document.getElementById('alert-count');
-      if (countEl) countEl.innerText = `${alerts.length} Active`;
       const badgeEl = document.getElementById('alert-badge');
       if (badgeEl) badgeEl.innerText = `${alerts.length} Alerts`;
+      await loadYardKPIs();
     }
 
     async function testValidMove() {
+      const contList = Object.values(containersCache).filter(c => c.slot_id);
+      if (contList.length === 0) {
+        alert("Không có container nào đang hạ bãi để thử nghiệm!");
+        return;
+      }
+      const cont = contList[0];
+      const emptySlot = currentBlockSlots.find(s => s.status === 'EMPTY' && s.tier === 1 && s.slot_id !== cont.slot_id);
+      const targetSlot = emptySlot ? emptySlot.slot_id : 'A-01-02-1';
+
       const res = await fetch('/api/v1/yard/atomic-move', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ container_no: "EMCU8921470", target_slot_id: "A-01-02-1", operator: "RTG-01" })
+        body: JSON.stringify({ container_no: cont.container_no, target_slot_id: targetSlot, operator: "RTG-01" })
       });
       const data = await res.json();
       alert(`[ATOMIC MOVE THÀNH CÔNG]\n${data.message}`);
@@ -472,10 +499,17 @@
     }
 
     async function testFloatingMove() {
-      // Thử di chuyển container TCKU9012384 từ tầng 1 (A-01-04-1) lên tầng 2 (A-01-04-2) của chính nó
+      const contList = Object.values(containersCache).filter(c => c.slot_id && c.slot_id.endsWith('-1'));
+      const cont = contList.length > 0 ? contList[0] : Object.values(containersCache)[0];
+      if (!cont || !cont.slot_id) {
+        alert("Cần ít nhất 1 container ở tầng 1 để thử nghiệm!");
+        return;
+      }
+      const parts = cont.slot_id.split('-');
+      const floatTarget = `${parts[0]}-${parts[1]}-${parts[2]}-2`;
       const res = await fetch('/api/v1/yard/atomic-move', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ container_no: "TCKU9012384", target_slot_id: "A-01-04-2", operator: "RTG-01" })
+        body: JSON.stringify({ container_no: cont.container_no, target_slot_id: floatTarget, operator: "RTG-01" })
       });
       const data = await res.json();
       if (res.ok) {
@@ -486,14 +520,32 @@
       loadBlock(currentBlock);
     }
 
-    function testRaceCondition() {
-      alert("[409 CONFLICT - DISTRIBUTED REDIS LOCK]\nXung đột tranh chấp! Ô A-01-03-1 đang bị khóa bởi RTG-01. Yêu cầu của RTG-02 bị từ chối an toàn!");
+    async function testRaceCondition() {
+      try {
+        const res = await fetch('/api/v1/yard/simulate-race-condition', { method: 'POST' });
+        const data = await res.json();
+        if (res.status === 409) {
+          alert(`[409 CONFLICT - THỬ NGHIỆM TRANH CHẤP THÀNH CÔNG]\n${data.message}\n${data.details || ''}`);
+        } else {
+          alert(`[KẾT QUẢ]: ${data.message}`);
+        }
+        await loadAlerts();
+        await loadContainers();
+        loadBlock(currentBlock);
+      } catch (err) {
+        alert("Lỗi khi mô phỏng tranh chấp: " + err.message);
+      }
     }
 
     async function testHeavyOnLight() {
+      const heavyCont = Object.values(containersCache).find(c => c.weight_kg > 20000) || Object.values(containersCache)[0];
+      if (!heavyCont) {
+        alert("Không tìm thấy container phù hợp!");
+        return;
+      }
       const res = await fetch('/api/v1/yard/atomic-move', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ container_no: "EMCU8921470", target_slot_id: "A-01-01-3", operator: "RTG-02" })
+        body: JSON.stringify({ container_no: heavyCont.container_no, target_slot_id: "A-01-01-3", operator: "RTG-02" })
       });
       const data = await res.json();
       alert(`[AI STACKING ALERT - VI PHẠM]\n${data.message}`);
@@ -501,9 +553,12 @@
     }
 
     async function testReeferNoPlug() {
+      const reeferCont = Object.values(containersCache).find(c => c.is_reefer) || { container_no: "TCKU9012384" };
+      const noPlugSlot = currentBlockSlots.find(s => s.status === 'EMPTY' && s.tier === 1 && !s.is_reefer_plug);
+      const targetSlot = noPlugSlot ? noPlugSlot.slot_id : 'A-02-01-1';
       const res = await fetch('/api/v1/yard/atomic-move', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ container_no: "TCKU9012384", target_slot_id: "A-02-01-1", operator: "RTG-03" })
+        body: JSON.stringify({ container_no: reeferCont.container_no, target_slot_id: targetSlot, operator: "RTG-03" })
       });
       const data = await res.json();
       alert(`[AI STACKING ALERT - THIẾU ĐIỆN 3 PHA]\n${data.message}`);
