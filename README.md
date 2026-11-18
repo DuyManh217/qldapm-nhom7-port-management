@@ -78,6 +78,19 @@ python -m unittest discover tests
 
 ---
 
+## 🔁 CI bằng GitHub Actions
+
+Workflow CI nằm tại `.github/workflows/ci.yml` và được chạy tự động khi:
+
+- push lên nhánh `main` hoặc `develop`;
+- tạo Pull Request vào nhánh `main`.
+
+CI thực hiện các bước: cài dependency, kiểm tra cú pháp Python, chạy lint cơ bản và chạy toàn bộ test. Có thể xem kết quả tại tab **Actions** của repository. Nếu một bước thất bại, Pull Request cần được sửa trước khi hợp nhất vào `main`.
+
+CI hiện chỉ kiểm tra mã nguồn và test; chưa tự động deploy lên Staging/Production. CD là hướng phát triển tương lai khi nhóm có hạ tầng triển khai phù hợp.
+
+---
+
 ## 📄 Bản quyền & Tác giả
 - Nhóm 07 - Bộ môn Quản lý Dự án Phần mềm.
 - Được cấp phép theo giấy phép [MIT](LICENSE).
