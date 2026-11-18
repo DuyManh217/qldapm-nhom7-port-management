@@ -340,10 +340,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. Bảng Phiên Đề xuất Xếp bãi AI (spms_ai_stacking_recommendations)
 CREATE TABLE IF NOT EXISTS spms_ai_stacking_recommendations (
     recommendation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    container_no VARCHAR(11) NOT NULL REFERENCES spms_containers(container_no),
+    container_no VARCHAR(11) NOT NULL REFERENCES yard.tbl_containers(container_no),
     source_type VARCHAR(20) NOT NULL,            -- GATE_IN, DISCHARGE_VESSEL, SHIFTING_INTERNAL
     source_location VARCHAR(32),                 -- Cổng số, hầm tàu hoặc ô nguồn
-    allocated_slot_id VARCHAR(32) REFERENCES spms_yard_slots(slot_id),
+    allocated_slot_id VARCHAR(32) REFERENCES yard.tbl_yard_slots(slot_id),
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, ACCEPTED, REJECTED, EXPIRED
     confidence_score NUMERIC(5,4) NOT NULL,      -- Độ tin cậy thuật toán (0.0000 - 1.0000)
     reshuffle_risk_index NUMERIC(4,3) NOT NULL,  -- Nguy cơ đảo chuyển dự báo (0.000 - 1.000)
@@ -358,7 +358,7 @@ CREATE TABLE IF NOT EXISTS spms_ai_stacking_recommendations (
 CREATE TABLE IF NOT EXISTS spms_ai_stacking_candidates (
     candidate_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     recommendation_id UUID NOT NULL REFERENCES spms_ai_stacking_recommendations(recommendation_id) ON DELETE CASCADE,
-    slot_id VARCHAR(32) NOT NULL REFERENCES spms_yard_slots(slot_id),
+    slot_id VARCHAR(32) NOT NULL REFERENCES yard.tbl_yard_slots(slot_id),
     ranking_order INT NOT NULL,                  -- Thứ hạng (Top 1, 2, 3)
     total_score NUMERIC(8,4) NOT NULL,           -- Tổng điểm đánh giá
     turnaround_cost NUMERIC(8,2) NOT NULL,       -- Điểm chi phí cẩu RTG/xe kéo
@@ -380,8 +380,8 @@ CREATE TABLE IF NOT EXISTS spms_yard_alerts (
     alert_code VARCHAR(50) NOT NULL,             -- OVERDUE_DWELL, REEFER_TEMP_BREACH, IMDG_SEGREGATION_FAIL
     severity VARCHAR(20) NOT NULL,               -- INFO, WARNING, CRITICAL, FATAL
     category VARCHAR(30) NOT NULL,               -- YARD_STORAGE, REEFER_COLD_CHAIN, HAZARDOUS_SAFETY
-    container_no VARCHAR(11) REFERENCES spms_containers(container_no),
-    slot_id VARCHAR(32) REFERENCES spms_yard_slots(slot_id),
+    container_no VARCHAR(11) REFERENCES yard.tbl_containers(container_no),
+    slot_id VARCHAR(32) REFERENCES yard.tbl_yard_slots(slot_id),
     block_id VARCHAR(16) NOT NULL,
     alert_title VARCHAR(200) NOT NULL,
     alert_details JSONB NOT NULL,                -- Thông số chi tiết cảnh báo
