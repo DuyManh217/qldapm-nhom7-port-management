@@ -120,6 +120,33 @@ def evaluate_stacking_rules(container_data, target_slot_id):
 # --- REST APIS FOR YARD & CONTAINER ---
 
 # ------------------------------------------------------------------------------
+# Function: get_yard_blocks
+# Mục đích sử dụng: Lấy danh mục các khối bãi (Yard Blocks) kèm thống kê sức chứa, số vị trí và tỷ lệ lấp đầy (hỗ trợ đặc tả API Spec và kịch bản YC-05).
+# ------------------------------------------------------------------------------
+@yard_container_bp.route("/api/v1/yard/blocks", methods=["GET"])
+@yard_container_bp.route("/api/yard/blocks", methods=["GET"])
+def get_yard_blocks():
+    conn = get_db()
+    cur = conn.cursor()
+    blocks_meta = [
+        {"block_id": 1, "block_code": "A", "block_name": "Block A - Cát Lái (Khô & Lạnh)", "max_bays": 4, "max_rows": 4, "max_tiers": 4, "capacity": 64, "block_type": "MIXED"},
+        {"block_id": 2, "block_code": "B", "block_name": "Block B - Cát Lái (Hàng khô)", "max_bays": 4, "max_rows": 4, "max_tiers": 4, "capacity": 64, "block_type": "DRY"},
+        {"block_id": 3, "block_code": "C", "block_name": "Block C - Cái Mép (Trung chuyển)", "max_bays": 4, "max_rows": 4, "max_tiers": 4, "capacity": 64, "block_type": "DRY"}
+    ]
+    for b in blocks_meta:
+        cur.execute("SELECT COUNT(*) FROM tbl_yard_slots WHERE block = ?;", (b["block_code"],))
+        b["total_slots"] = cur.fetchone()[0] or 64
+        cur.execute("SELECT COUNT(*) FROM tbl_yard_slots WHERE block = ? AND status = 'OCCUPIED';", (b["block_code"],))
+        b["occupied_slots"] = cur.fetchone()[0] or 0
+        b["occupancy_percent"] = round((b["occupied_slots"] / b["total_slots"]) * 100, 1) if b["total_slots"] > 0 else 0
+    conn.close()
+    return jsonify({
+        "status": "success",
+        "data": blocks_meta,
+        "total": len(blocks_meta)
+    })
+
+# ------------------------------------------------------------------------------
 # Function: get_yard_slots
 # Mục đích sử dụng: Lấy danh sách toàn bộ các ô bãi container theo Block (Block, Bay, Row, Tier)
 #                   kèm trạng thái chiếm giữ và thông tin khóa phân tán thời gian thực.
@@ -392,14 +419,19 @@ def get_yard_kpi():
 
 # ------------------------------------------------------------------------------
 # Function: atomic_yard_movement
-# Mục đích sử dụng: Thực hiện di dời container nguyên tử (Atomic Movement) kèm khóa phân tán (Distributed Lock)
-#                   và kiểm tra vi phạm quy chuẩn xếp bãi, tự động ghi nhận cảnh báo nếu vi phạm.
+# Mục đích sử dụng: Thực hiện di dời container nguyên tử (Atomic Movement / Shifting) kèm khóa phân tán (Distributed Lock)
+#                   và kiểm tra vi phạm quy chuẩn xếp bãi, tự động ghi nhận cảnh báo nếu vi phạm (hỗ trợ YC-09, YC-10, YC-11).
 # ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/atomic-move", methods=["POST"])
+@yard_container_bp.route("/api/v1/yard/containers/shift", methods=["POST"])
+@yard_container_bp.route("/api/v1/yard/shifting/execute", methods=["POST"])
+@yard_container_bp.route("/api/yard/atomic-move", methods=["POST"])
 def atomic_yard_movement():
     data = request.get_json(silent=True) or {}
     container_no = data.get("container_no")
-    target_slot_id = data.get("target_slot_id")
+    target_slot_id = data.get("target_slot_id") or data.get("target_slot")
+    if not target_slot_id and data.get("target_block_code"):
+        target_slot_id = f"{data.get('target_block_code')}-{int(data.get('target_bay', 1)):02d}-{int(data.get('target_row', 1)):02d}-{int(data.get('target_tier', 1))}"
     operator = data.get("operator", "RTG-01")
 
     conn = get_db()
@@ -459,6 +491,59 @@ def atomic_yard_movement():
         "code": "SUCCESS", "message": f"Đảo chuyển container {container_no} thành công sang ô {target_slot_id} (Atomic Commit)",
         "old_slot_id": old_slot_id, "new_slot_id": target_slot_id
     })
+
+# ------------------------------------------------------------------------------
+# Function: assign_container_slot
+# Mục đích sử dụng: Gán vị trí ô bãi cho container theo mã định danh (hỗ trợ đặc tả kịch bản YC-06).
+# ------------------------------------------------------------------------------
+@yard_container_bp.route("/api/v1/yard/containers/<container_no>/assign-slot", methods=["POST"])
+@yard_container_bp.route("/api/yard/containers/<container_no>/assign-slot", methods=["POST"])
+def assign_container_slot(container_no):
+    data = request.get_json(silent=True) or {}
+    target_slot_id = data.get("slot_id") or data.get("target_slot_id") or data.get("target_slot")
+    if not target_slot_id and data.get("target_block_code"):
+        target_slot_id = f"{data.get('target_block_code')}-{int(data.get('target_bay', 1)):02d}-{int(data.get('target_row', 1)):02d}-{int(data.get('target_tier', 1))}"
+    operator = data.get("operator", "RTG-01")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM tbl_containers WHERE container_no = ?;", (container_no,))
+    cont_row = cur.fetchone()
+    if not cont_row:
+        conn.close()
+        return jsonify({"code": "ERR_CONTAINER_NOT_FOUND", "message": f"Không tìm thấy container {container_no}"}), 404
+
+    cur.execute("SELECT * FROM tbl_yard_slots WHERE slot_id = ?;", (target_slot_id,))
+    target_slot = cur.fetchone()
+    if not target_slot:
+        conn.close()
+        return jsonify({"code": "ERR_SLOT_NOT_FOUND", "message": f"Không tìm thấy ô bãi {target_slot_id}"}), 404
+
+    cont = dict(cont_row)
+    cont["is_reefer"] = bool(cont["is_reefer"])
+    cont["is_hazardous"] = bool(cont["is_hazardous"])
+
+    is_valid, rule_msg = evaluate_stacking_rules(cont, target_slot_id)
+    if not is_valid:
+        conn.close()
+        return jsonify({"code": "ERR_STACKING_RULE_VIOLATION", "message": rule_msg}), 422
+
+    old_slot_id = cont.get("slot_id")
+    if old_slot_id:
+        cur.execute("UPDATE tbl_yard_slots SET status = 'AVAILABLE', container_no = NULL, locked_by = NULL WHERE slot_id = ?;", (old_slot_id,))
+
+    cur.execute("UPDATE tbl_yard_slots SET status = 'OCCUPIED', container_no = ?, locked_by = NULL WHERE slot_id = ?;", (container_no, target_slot_id))
+    cur.execute("UPDATE tbl_containers SET slot_id = ? WHERE container_no = ?;", (target_slot_id, container_no))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Gán vị trí ô {target_slot_id} cho container {container_no} thành công!",
+        "old_slot_id": old_slot_id,
+        "new_slot_id": target_slot_id
+    }), 200
 
 # --- REAL RACE CONDITION CONCURRENCY SIMULATION ENDPOINT ---
 

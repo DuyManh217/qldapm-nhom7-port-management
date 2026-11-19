@@ -261,6 +261,13 @@ OPENAPI_SPEC = {
                 "responses": {"200": {"description": "Tỷ lệ chiếm dụng cầu bến, năng suất dỡ hàng moves/h"}}
             }
         },
+        "/api/v1/yard/blocks": {
+            "get": {
+                "summary": "Lấy danh mục các khối bãi container (Yard Blocks)",
+                "tags": ["Phân hệ Bãi & Container (Yard & Container)"],
+                "responses": {"200": {"description": "Danh sách các khối bãi A, B, C kèm sức chứa và occupancy"}}
+            }
+        },
         "/api/v1/yard/slots": {
             "get": {
                 "summary": "Lấy sơ đồ lưới bãi container (192 slots)",
