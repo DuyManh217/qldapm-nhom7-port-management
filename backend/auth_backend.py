@@ -129,6 +129,8 @@ def login():
         username=user["username"],
         roles=roles,
         permissions=permissions,
+        full_name=user["full_name"],
+        email=user["email"],
         terminal=user["terminal_code"]
     )
 
@@ -239,13 +241,15 @@ def refresh_token():
 @jwt_required()
 def logout():
     user = g.current_user
+    uid = user.get("user_id") or user.get("sub")
+    uname = user.get("username") or user.get("sub")
     conn = db.get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE spms_refresh_tokens SET is_revoked = 1 WHERE user_id = ?", (user["user_id"],))
+    cur.execute("UPDATE spms_refresh_tokens SET is_revoked = 1 WHERE user_id = ?", (uid,))
     conn.commit()
     conn.close()
 
-    record_audit(user["user_id"], user["sub"], "USER_LOGOUT", "AUTH_PORTAL", "SUCCESS", "Đăng xuất an toàn")
+    record_audit(uid, uname, "USER_LOGOUT", "AUTH_PORTAL", "SUCCESS", "Đăng xuất an toàn")
 
     return jsonify({
         "status": "SUCCESS",
@@ -257,9 +261,10 @@ def logout():
 @jwt_required()
 def get_me():
     user = g.current_user
+    uid = user.get("user_id") or user.get("sub")
     conn = db.get_db()
     cur = conn.cursor()
-    cur.execute("SELECT user_id, username, full_name, email, phone_number, terminal_code, department, is_active FROM spms_users WHERE user_id = ?", (user["user_id"],))
+    cur.execute("SELECT user_id, username, full_name, email, phone_number, terminal_code, department, is_active FROM spms_users WHERE user_id = ?", (uid,))
     profile = cur.fetchone()
     conn.close()
 
