@@ -107,6 +107,11 @@ def init_db():
     );
     """)
 
+    # ==========================================================================
+    # CÁC BẢNG BẢO MẬT, USER/ROLE & NHẬT KÝ KIỂM TOÁN (DOC 79, DOC 96, SCHEMA.SQL)
+    # Người thực hiện: Đào Văn Sơn - B23DCCN961
+    # ==========================================================================
+
     # 7. Bảng Vai trò người dùng (spms_roles)
     cur.execute("""
     CREATE TABLE IF NOT EXISTS spms_roles (
@@ -285,6 +290,11 @@ def seed_data(conn):
 
     conn.commit()
 
+# ------------------------------------------------------------------------------
+# Function: seed_auth_data
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Khởi tạo dữ liệu mẫu cho các vai trò (spms_roles), quyền hạn (spms_permissions) và tài khoản người dùng mặc định kèm mật khẩu băm PBKDF2 (admin, dispatcher, operator, security, accountant, customer)
+# ------------------------------------------------------------------------------
 def seed_auth_data(conn):
     try:
         from auth_utils import hash_password

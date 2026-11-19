@@ -1,8 +1,17 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Tài liệu hóa Giao diện Lập trình OpenAPI 3.0 & Trình duyệt tương tác Swagger UI
+# ==============================================================================
+
 import json
 from flask import Blueprint, jsonify, render_template_string
 
 swagger_bp = Blueprint("swagger_bp", __name__)
 
+# Cấu hình đặc tả OpenAPI 3.0.3 chuẩn doanh nghiệp
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
 OPENAPI_SPEC = {
     "openapi": "3.0.3",
     "info": {
@@ -10,7 +19,7 @@ OPENAPI_SPEC = {
         "description": "Đặc tả kỹ thuật OpenAPI 3.0 cho Hệ thống Điều hành Khai thác Cảng SPMS - Tổng Công ty Tân Cảng Sài Gòn (SNP). Bao gồm Phân hệ Xác thực JWT & Phân quyền RBAC, Quản lý Tàu & Cầu bến (Vessel & Berth), Quản lý Bãi & Container (Yard & Container) và Nhật ký Kiểm toán (Audit Logs).",
         "version": "1.0.0",
         "contact": {
-            "name": "Trung tâm CNTT Tân Cảng Sài Gòn & Đội Dự án Nhóm 7",
+            "name": "Đào Văn Sơn (B23DCCN961) & Đội Dự án Nhóm 7",
             "email": "daoduymanh217@gmail.com",
             "url": "https://github.com/DuyManh217/qldapm-nhom7-port-management"
         },
@@ -360,12 +369,28 @@ SWAGGER_UI_HTML = """<!DOCTYPE html>
 </html>
 """
 
+
+# ------------------------------------------------------------------------------
+# Function: get_openapi_json
+# Endpoint: GET /api/v1/openapi.json
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Cung cấp tài liệu đặc tả API chuẩn OpenAPI 3.0 dưới định dạng JSON cho các hệ thống đối tác hoặc công cụ tự động (Swagger, Postman)
+# ------------------------------------------------------------------------------
 @swagger_bp.route("/api/v1/openapi.json", methods=["GET"])
 def get_openapi_json():
+    """Trả về đặc tả OpenAPI 3.0 dạng JSON chuẩn của hệ thống SPMS."""
     return jsonify(OPENAPI_SPEC)
 
+
+# ------------------------------------------------------------------------------
+# Function: swagger_ui
+# Endpoint: GET /api/docs (và bí danh /docs, /swagger)
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Hiển thị giao diện Swagger UI tương tác trực quan tại runtime trên trình duyệt web, hỗ trợ kiểm thử trực tiếp các endpoint API của 2 module Vessel & Yard cùng module Auth
+# ------------------------------------------------------------------------------
 @swagger_bp.route("/api/docs", methods=["GET"])
 @swagger_bp.route("/docs", methods=["GET"])
 @swagger_bp.route("/swagger", methods=["GET"])
 def swagger_ui():
+    """Phục vụ trang Swagger UI tương tác trực tiếp trên trình duyệt."""
     return render_template_string(SWAGGER_UI_HTML)

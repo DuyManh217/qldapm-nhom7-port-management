@@ -1,3 +1,10 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Máy chủ Trung tâm Flask Web Application & Định tuyến Hệ thống
+# ==============================================================================
+
 import os
 import sys
 import unittest
@@ -28,18 +35,38 @@ app.register_blueprint(yard_container_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(swagger_bp)
 
+# ------------------------------------------------------------------------------
+# Function: home
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Phục vụ trang chủ giao diện web tích hợp (Portal) của hệ thống SPMS.
+# ------------------------------------------------------------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
+# ------------------------------------------------------------------------------
+# Function: vessel_page
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Phục vụ giao diện điều hành phân hệ Tàu & Cầu bến (Vessel & Berth).
+# ------------------------------------------------------------------------------
 @app.route("/vessel")
 def vessel_page():
     return render_template("vessel_berth.html")
 
+# ------------------------------------------------------------------------------
+# Function: yard_page
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Phục vụ giao diện điều hành phân hệ Bãi Container (Yard & Container).
+# ------------------------------------------------------------------------------
 @app.route("/yard")
 def yard_page():
     return render_template("yard_container.html")
 
+# ------------------------------------------------------------------------------
+# Function: run_tests
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: API kích hoạt chạy toàn bộ bộ kiểm thử tự động (46 test cases) thời gian thực và trả về kết quả JSON.
+# ------------------------------------------------------------------------------
 # REAL DYNAMIC AUTOMATED TESTS ENDPOINT
 @app.route("/api/v1/tests/run-all", methods=["POST"])
 def run_tests():

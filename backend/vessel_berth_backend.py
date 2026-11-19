@@ -1,3 +1,10 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Quản lý Tàu cập cảng, Cầu bến, Phát hiện Xung đột Không-Thời gian & Tối ưu BAP
+# ==============================================================================
+
 from flask import Blueprint, request, jsonify, render_template
 from datetime import datetime, timedelta
 import random
@@ -6,7 +13,13 @@ from db import get_db
 
 vessel_berth_bp = Blueprint('vessel_berth', __name__)
 
-# --- SPATIOTEMPORAL COLLISION DETECTION ENGINE ---
+# ------------------------------------------------------------------------------
+# Function: check_berth_collision
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thuật toán kiểm tra xung đột thời gian - không gian cầu bến
+#                   (Spatiotemporal Collision Detection Engine) giữa khoảng mét cầu cảng
+#                   và khung giờ neo đậu của tàu dự kiến với các chuyến tàu đang hoạt động.
+# ------------------------------------------------------------------------------
 def check_berth_collision(start_meter, end_meter, start_time_str, end_time_str, buffer_meters=15.0):
     req_start_m = float(start_meter) - buffer_meters
     req_end_m = float(end_meter) + buffer_meters
@@ -39,6 +52,12 @@ def check_berth_collision(start_meter, end_meter, start_time_str, end_time_str, 
     return conflicts
 
 # --- REST APIS FOR VESSEL & BERTH ---
+
+# ------------------------------------------------------------------------------
+# Function: get_vessels
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Lấy danh sách toàn bộ đội tàu trong cơ sở dữ liệu cảng, sắp xếp theo mã IMO.
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/vessels", methods=["GET"])
 def get_vessels():
     conn = get_db()
@@ -48,6 +67,11 @@ def get_vessels():
     conn.close()
     return jsonify(vessels)
 
+# ------------------------------------------------------------------------------
+# Function: add_vessel
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thêm mới một tàu vào danh mục cảng biển với đầy đủ thông số kỹ thuật (IMO, LOA, Beam, Draft, DWT, TEU).
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/vessels", methods=["POST"])
 def add_vessel():
     data = request.get_json(silent=True) or {}
@@ -107,6 +131,11 @@ def add_vessel():
         "data": new_vessel
     }), 201
 
+# ------------------------------------------------------------------------------
+# Function: update_vessel
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Cập nhật thông số kỹ thuật tàu biển (tên tàu, hãng tàu, LOA, Beam, Draft, DWT, TEU) theo IMO.
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/vessels/<imo>", methods=["PUT"])
 def update_vessel(imo):
     imo = str(imo).strip()
@@ -179,6 +208,11 @@ def update_vessel(imo):
         "data": vessel
     }), 200
 
+# ------------------------------------------------------------------------------
+# Function: delete_vessel
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Xóa tàu khỏi hệ thống cảng (có kiểm tra ràng buộc không được xóa khi tàu đang có chuyến cập bến active).
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/vessels/<imo>", methods=["DELETE"])
 def delete_vessel(imo):
     conn = get_db()
@@ -209,6 +243,11 @@ def delete_vessel(imo):
         "deleted_imo": imo
     }), 200
 
+# ------------------------------------------------------------------------------
+# Function: get_berths
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Truy vấn danh sách các phân đoạn bến cảng (Berth B1 -> B6) kèm tọa độ mét và mớn nước thiết kế.
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/berths", methods=["GET"])
 def get_berths():
     conn = get_db()
@@ -218,6 +257,11 @@ def get_berths():
     conn.close()
     return jsonify(berths)
 
+# ------------------------------------------------------------------------------
+# Function: get_port_calls
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Lấy danh sách các chuyến tàu cập cảng (Port Calls) kèm trạng thái, thời gian ETA/ETD và sản lượng TEU.
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/port-calls", methods=["GET"])
 def get_port_calls():
     conn = get_db()
@@ -227,6 +271,11 @@ def get_port_calls():
     conn.close()
     return jsonify(calls)
 
+# ------------------------------------------------------------------------------
+# Function: create_port_call
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Đăng ký chuyến tàu và phân bổ vị trí cầu bến (kiểm tra an toàn mớn nước, ranh giới cầu cảng và va chạm không-thời gian).
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/port-calls", methods=["POST"])
 def create_port_call():
     data = request.get_json(silent=True) or {}
@@ -304,6 +353,11 @@ def create_port_call():
 
     return jsonify({"code": "SUCCESS", "message": "Đăng ký chuyến tàu và phân bổ cầu bến thành công!", "data": new_call}), 201
 
+# ------------------------------------------------------------------------------
+# Function: delete_port_call
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Hủy chuyến hoặc giải phóng cầu bến cho tàu rời cảng theo mã chuyến (call_id).
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/port-calls/<call_id>", methods=["DELETE"])
 def delete_port_call(call_id):
     conn = get_db()
@@ -326,6 +380,12 @@ def delete_port_call(call_id):
     }), 200
 
 # --- DYNAMIC KPI METRICS ENDPOINT ---
+
+# ------------------------------------------------------------------------------
+# Function: get_vessel_kpis
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Tính toán các chỉ số hiệu suất KPI cầu bến thời gian thực (tỷ lệ lấp đầy %, tốc độ bốc dỡ moves/h).
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/vessel/kpi", methods=["GET"])
 def get_vessel_kpis():
     conn = get_db()
@@ -365,6 +425,13 @@ def get_vessel_kpis():
     })
 
 # --- DYNAMIC AI OPTIMIZE BERTH ALLOCATION ENGINE ---
+
+# ------------------------------------------------------------------------------
+# Function: ai_optimize_berth
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thuật toán AI lập kế hoạch và phân bổ cầu bến thông minh (Berth Allocation Problem - BAP)
+#                   tối ưu hóa khoảng cách di chuyển và thời gian chờ của tàu.
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/v1/ai/optimize-berth", methods=["POST"])
 def ai_optimize_berth():
     t0 = time.time()

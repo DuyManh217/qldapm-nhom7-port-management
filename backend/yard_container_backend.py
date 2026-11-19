@@ -1,3 +1,10 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Quản lý Bãi Container, Quy chuẩn Xếp dỡ TOS, Di chuyển Nguyên tử & Khóa phân tán
+# ==============================================================================
+
 from flask import Blueprint, request, jsonify, render_template
 from datetime import datetime
 import time
@@ -8,7 +15,13 @@ yard_container_bp = Blueprint('yard_container', __name__)
 # Distributed in-memory locks table for concurrency simulation
 SLOT_LOCKS = {}
 
-# --- AI STACKING RULE EVALUATION ENGINE ---
+# ------------------------------------------------------------------------------
+# Function: evaluate_stacking_rules
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Động cơ kiểm tra quy chuẩn xếp chồng container (Stacking Rules Engine):
+#                   kiểm tra nâng hạ không bị đè, quy tắc trọng lực, nặng dưới nhẹ trên,
+#                   cách ly an toàn hàng nguy hiểm IMDG và ổ cắm container lạnh Reefer.
+# ------------------------------------------------------------------------------
 def evaluate_stacking_rules(container_data, target_slot_id):
     old_slot_id = container_data.get("slot_id")
 
@@ -106,6 +119,13 @@ def evaluate_stacking_rules(container_data, target_slot_id):
     return True, "Hợp lệ, thỏa mãn toàn bộ quy chuẩn xếp bãi."
 
 # --- REST APIS FOR YARD & CONTAINER ---
+
+# ------------------------------------------------------------------------------
+# Function: get_yard_slots
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Lấy danh sách toàn bộ các ô bãi container theo Block (Block, Bay, Row, Tier)
+#                   kèm trạng thái chiếm giữ và thông tin khóa phân tán thời gian thực.
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/slots", methods=["GET"])
 def get_yard_slots():
     block = request.args.get("block", "A")
@@ -123,6 +143,11 @@ def get_yard_slots():
     conn.close()
     return jsonify(slots)
 
+# ------------------------------------------------------------------------------
+# Function: get_containers
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Lấy danh sách toàn bộ container đang lưu bãi kèm thông số trọng lượng, hàng lạnh, nguy hiểm và vị trí slot_id.
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/containers", methods=["GET"])
 def get_containers():
     conn = get_db()
@@ -137,6 +162,11 @@ def get_containers():
     conn.close()
     return jsonify(containers)
 
+# ------------------------------------------------------------------------------
+# Function: create_container
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thêm mới một container vào hệ thống bãi (có kiểm tra quy chuẩn xếp dỡ nếu gán vị trí ô bãi ban đầu).
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/containers", methods=["POST"])
 def create_container():
     data = request.get_json(silent=True) or {}
@@ -213,6 +243,11 @@ def create_container():
         "data": new_cont
     }), 201
 
+# ------------------------------------------------------------------------------
+# Function: update_container
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Cập nhật thông số kỹ thuật của container (kích cỡ ISO, trọng lượng, nhiệt độ cài đặt reefer, phân loại nguy hiểm).
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/containers/<container_no>", methods=["PUT"])
 def update_container(container_no):
     container_no = container_no.strip().upper()
@@ -264,6 +299,11 @@ def update_container(container_no):
         "data": cont
     })
 
+# ------------------------------------------------------------------------------
+# Function: delete_container
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Xóa container khỏi hệ thống và giải phóng ô bãi (có kiểm tra an toàn không xóa container bị đè phía trên).
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/containers/<container_no>", methods=["DELETE"])
 def delete_container(container_no):
     container_no = container_no.strip().upper()
@@ -299,6 +339,11 @@ def delete_container(container_no):
         "message": f"Đã xóa container {container_no} khỏi hệ thống và giải phóng ô bãi {old_slot_id or 'N/A'}!"
     })
 
+# ------------------------------------------------------------------------------
+# Function: get_yard_alerts
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Truy vấn danh sách cảnh báo vi phạm quy chuẩn bãi container thời gian thực.
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/alerts", methods=["GET"])
 def get_yard_alerts():
     conn = get_db()
@@ -309,6 +354,12 @@ def get_yard_alerts():
     return jsonify(alerts)
 
 # --- DYNAMIC KPI METRICS FOR YARD ---
+
+# ------------------------------------------------------------------------------
+# Function: get_yard_kpi
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thống kê chỉ số KPI bãi container (tổng số slot, số ô occupied, tỷ lệ lấp đầy %, số cảnh báo, trạng thái lock).
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/kpi", methods=["GET"])
 def get_yard_kpi():
     conn = get_db()
@@ -346,6 +397,13 @@ def get_yard_kpi():
     })
 
 # --- ATOMIC CONTAINER MOVEMENT ENGINE WITH DISTRIBUTED LOCK ---
+
+# ------------------------------------------------------------------------------
+# Function: atomic_yard_movement
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thực hiện di dời container nguyên tử (Atomic Movement) kèm khóa phân tán (Distributed Lock)
+#                   và kiểm tra vi phạm quy chuẩn xếp bãi, tự động ghi nhận cảnh báo nếu vi phạm.
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/atomic-move", methods=["POST"])
 def atomic_yard_movement():
     data = request.get_json(silent=True) or {}
@@ -412,6 +470,13 @@ def atomic_yard_movement():
     })
 
 # --- REAL RACE CONDITION CONCURRENCY SIMULATION ENDPOINT ---
+
+# ------------------------------------------------------------------------------
+# Function: simulate_race_condition
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Mô phỏng tình huống tranh chấp tài nguyên đồng thời (Race Condition Concurrency)
+#                   giữa 2 cẩu RTG cùng nhắm vào một ô bãi, chứng minh cơ chế Khóa phân tán trả về HTTP 409 Conflict.
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/simulate-race-condition", methods=["POST"])
 def simulate_race_condition():
     data = request.get_json(silent=True) or {}
@@ -432,6 +497,11 @@ def simulate_race_condition():
         "message": f"Xung đột tranh chấp phân tán (HTTP 409 Conflict): Ô {target_slot} đang bị khóa độc quyền bởi thiết bị cẩu {op1}. Yêu cầu đồng thời của thiết bị cẩu {op2} bị từ chối an toàn!"
     }), 409
 
+# ------------------------------------------------------------------------------
+# Function: reset_yard
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Khôi phục toàn bộ trạng thái dữ liệu mẫu chuẩn của bãi container và giải phóng toàn bộ khóa phân tán.
+# ------------------------------------------------------------------------------
 @yard_container_bp.route("/api/v1/yard/reset", methods=["POST"])
 def reset_yard():
     conn = get_db()

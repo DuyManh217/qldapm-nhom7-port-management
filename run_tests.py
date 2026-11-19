@@ -1,3 +1,10 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Trình thực thi Kiểm thử Tự động Toàn diện (46 Test Cases)
+# ==============================================================================
+
 import os
 import sys
 import unittest

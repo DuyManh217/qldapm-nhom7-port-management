@@ -1,3 +1,10 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Phân hệ Quản trị Xác thực (Auth), Quản lý User/Role & Nhật ký Kiểm toán
+# ==============================================================================
+
 import uuid
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
@@ -14,7 +21,13 @@ from auth_utils import (
 auth_bp = Blueprint("auth_bp", __name__)
 
 
+# ------------------------------------------------------------------------------
+# Function: record_audit
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Ghi vết kiểm toán an ninh bất biến (Immutable Audit Trail) vào bảng spms_audit_logs mỗi khi có hành vi đăng nhập, đổi mật khẩu, sửa dữ liệu hoặc quản trị tài khoản
+# ------------------------------------------------------------------------------
 def record_audit(user_id: str, username: str, action: str, resource: str, status: str, details: str = ""):
+    """Ghi nhận bản ghi nhật ký kiểm toán vào CSDL."""
     try:
         conn = db.get_db()
         cur = conn.cursor()
@@ -39,8 +52,15 @@ def record_audit(user_id: str, username: str, action: str, resource: str, status
         print(f"Error logging audit: {e}")
 
 
+# ------------------------------------------------------------------------------
+# Function: login
+# Endpoint: POST /api/v1/auth/login
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Tiếp nhận thông tin đăng nhập, xác minh mật khẩu băm, tự động khóa sau 5 lần nhập sai, cấp mã JWT Access Token và Refresh Token cho người dùng
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/login", methods=["POST"])
 def login():
+    """Đăng nhập người dùng, kiểm tra tài khoản và sinh JWT token."""
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
     password = data.get("password", "")
@@ -99,11 +119,11 @@ def login():
             "message": "Tên đăng nhập hoặc mật khẩu không chính xác"
         }), 401
 
-    # Reset failed login count and record last login
+    # Đặt lại bộ đếm đăng nhập sai và lưu thời điểm đăng nhập thành công
     cur.execute("UPDATE spms_users SET failed_login_attempts = 0, last_login_at = ? WHERE user_id = ?",
                 (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user["user_id"]))
 
-    # Fetch roles
+    # Truy xuất danh sách vai trò
     cur.execute("""
     SELECT r.role_id, r.role_name
     FROM spms_user_roles ur
@@ -113,7 +133,7 @@ def login():
     role_rows = cur.fetchall()
     roles = [r["role_id"] for r in role_rows]
 
-    # Fetch permissions
+    # Truy xuất danh sách quyền hạn chi tiết
     cur.execute("""
     SELECT DISTINCT p.permission_id
     FROM spms_role_permissions rp
@@ -123,7 +143,7 @@ def login():
     perm_rows = cur.fetchall()
     permissions = [p["permission_id"] for p in perm_rows]
 
-    # Generate Tokens
+    # Khởi tạo Access Token và Refresh Token
     access_token = create_access_token(
         user_id=user["user_id"],
         username=user["username"],
@@ -169,8 +189,15 @@ def login():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: refresh_token
+# Endpoint: POST /api/v1/auth/refresh
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Tiếp nhận Refresh Token hợp lệ từ client để cấp mới Access Token mà không yêu cầu người dùng phải đăng nhập lại
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/refresh", methods=["POST"])
 def refresh_token():
+    """Làm mới Access Token khi hết hạn bằng Refresh Token hợp lệ."""
     data = request.get_json(silent=True) or {}
     rt = data.get("refresh_token", "").strip()
 
@@ -185,7 +212,7 @@ def refresh_token():
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT rt.*, u.username, u.terminal_code, u.is_active, u.is_locked
+    SELECT rt.*, u.username, u.full_name, u.email, u.terminal_code, u.is_active, u.is_locked
     FROM spms_refresh_tokens rt
     JOIN spms_users u ON rt.user_id = u.user_id
     WHERE rt.token_value = ? AND rt.is_revoked = 0
@@ -208,7 +235,7 @@ def refresh_token():
             "message": "Tài khoản hiện không còn hoạt động"
         }), 403
 
-    # Load roles & perms
+    # Tải lại vai trò và quyền hạn mới nhất
     cur.execute("SELECT role_id FROM spms_user_roles WHERE user_id = ?", (row["user_id"],))
     roles = [r["role_id"] for r in cur.fetchall()]
 
@@ -222,6 +249,8 @@ def refresh_token():
         username=row["username"],
         roles=roles,
         permissions=permissions,
+        full_name=row["full_name"],
+        email=row["email"],
         terminal=row["terminal_code"]
     )
     conn.close()
@@ -237,9 +266,16 @@ def refresh_token():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: logout
+# Endpoint: POST /api/v1/auth/logout
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Thu hồi toàn bộ Refresh Token của người dùng trong CSDL và ghi nhận nhật ký kiểm toán Đăng xuất an toàn
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/logout", methods=["POST"])
 @jwt_required()
 def logout():
+    """Đăng xuất người dùng và thu hồi toàn bộ token phiên làm việc."""
     user = g.current_user
     uid = user.get("user_id") or user.get("sub")
     uname = user.get("username") or user.get("sub")
@@ -257,9 +293,16 @@ def logout():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: get_me
+# Endpoint: GET /api/v1/auth/me
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Trả về thông tin cá nhân, chức vụ, phòng ban và ma trận quyền hạn chi tiết của người dùng đang đăng nhập
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/me", methods=["GET"])
 @jwt_required()
 def get_me():
+    """Lấy thông tin hồ sơ và danh sách quyền của người dùng hiện tại."""
     user = g.current_user
     uid = user.get("user_id") or user.get("sub")
     conn = db.get_db()
@@ -287,10 +330,17 @@ def get_me():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: list_users
+# Endpoint: GET /api/v1/auth/users
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Dành riêng cho Quản trị viên (ROLE_ADMIN / PORT_ADMIN) truy xuất danh sách toàn bộ người dùng và vai trò trong hệ thống SPMS
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users", methods=["GET"])
 @jwt_required()
-@role_required("ROLE_ADMIN")
+@role_required("ROLE_ADMIN", "PORT_ADMIN")
 def list_users():
+    """Lấy danh sách tất cả người dùng trong hệ thống (Quyền Admin)."""
     conn = db.get_db()
     cur = conn.cursor()
     cur.execute("""
@@ -312,10 +362,17 @@ def list_users():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: create_user
+# Endpoint: POST /api/v1/auth/users
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Dành cho Quản trị viên tạo tài khoản cán bộ/nhân viên mới, tự động băm mật khẩu PBKDF2, gán vai trò và lưu vết kiểm toán USER_CREATE
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users", methods=["POST"])
 @jwt_required()
 @role_required("ROLE_ADMIN", "PORT_ADMIN")
 def create_user():
+    """Tạo người dùng mới và phân vai trò hệ thống."""
     data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
     password = data.get("password", "").strip()
@@ -336,7 +393,7 @@ def create_user():
     conn = db.get_db()
     cur = conn.cursor()
 
-    # Check existing username or email
+    # Kiểm tra trùng lặp tên đăng nhập hoặc email
     cur.execute("SELECT user_id FROM spms_users WHERE username = ? OR email = ?", (username, email))
     if cur.fetchone():
         conn.close()
@@ -354,7 +411,7 @@ def create_user():
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (user_id, username, h, salt, full_name, email, phone_number, terminal_code, department))
 
-    # Assign role
+    # Gán vai trò người dùng
     cur.execute("INSERT INTO spms_user_roles (user_id, role_id) VALUES (?, ?)", (user_id, role_id))
     conn.commit()
     conn.close()
@@ -377,9 +434,16 @@ def create_user():
     }), 201
 
 
+# ------------------------------------------------------------------------------
+# Function: get_user_by_id
+# Endpoint: GET /api/v1/auth/users/<user_id>
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Truy vấn thông tin chi tiết một tài khoản người dùng theo mã định danh user_id
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users/<user_id>", methods=["GET"])
 @jwt_required()
 def get_user_by_id(user_id):
+    """Lấy chi tiết một tài khoản người dùng theo user_id."""
     conn = db.get_db()
     cur = conn.cursor()
     cur.execute("""
@@ -403,10 +467,17 @@ def get_user_by_id(user_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: update_user
+# Endpoint: PUT /api/v1/auth/users/<user_id>
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Dành cho Quản trị viên cập nhật thông tin nhân viên, phòng ban, phân lại vai trò hoặc khóa/mở khóa tài khoản
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users/<user_id>", methods=["PUT"])
 @jwt_required()
 @role_required("ROLE_ADMIN", "PORT_ADMIN")
 def update_user(user_id):
+    """Cập nhật thông tin tài khoản người dùng."""
     data = request.get_json(silent=True) or {}
     conn = db.get_db()
     cur = conn.cursor()
@@ -430,7 +501,7 @@ def update_user(user_id):
     WHERE user_id = ?
     """, (full_name, email, department, phone_number, is_active, is_locked, user_id))
 
-    # If role update requested
+    # Nếu có yêu cầu thay đổi vai trò
     if "role_id" in data:
         cur.execute("DELETE FROM spms_user_roles WHERE user_id = ?", (user_id,))
         cur.execute("INSERT INTO spms_user_roles (user_id, role_id) VALUES (?, ?)", (user_id, data["role_id"]))
@@ -447,10 +518,17 @@ def update_user(user_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: delete_user
+# Endpoint: DELETE /api/v1/auth/users/<user_id>
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Dành cho Quản trị viên xóa tài khoản người dùng khỏi hệ thống và lưu vết kiểm toán USER_DELETE
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users/<user_id>", methods=["DELETE"])
 @jwt_required()
 @role_required("ROLE_ADMIN", "PORT_ADMIN")
 def delete_user(user_id):
+    """Xóa tài khoản người dùng."""
     conn = db.get_db()
     cur = conn.cursor()
     cur.execute("SELECT username FROM spms_users WHERE user_id = ?", (user_id,))
@@ -473,9 +551,16 @@ def delete_user(user_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: list_roles
+# Endpoint: GET /api/v1/auth/roles
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Trả về danh mục toàn bộ các vai trò nghiệp vụ cảng biển được định nghĩa trong hệ thống SPMS
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/roles", methods=["GET"])
 @jwt_required()
 def list_roles():
+    """Lấy danh sách các vai trò nghiệp vụ hệ thống."""
     conn = db.get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM spms_roles ORDER BY role_id ASC")
@@ -488,10 +573,17 @@ def list_roles():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: list_audit_logs
+# Endpoint: GET /api/v1/auth/audit-logs
+# Người thực hiện: Đào Văn Sơn - B23DCCN961
+# Mục đích sử dụng: Dành cho Quản trị viên truy vấn vết kiểm toán (Audit Trail) với bộ lọc đa tiêu chí: loại hành động, người thực hiện, trạng thái và giới hạn bản ghi
+# ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/audit-logs", methods=["GET"])
 @jwt_required()
 @role_required("ROLE_ADMIN", "PORT_ADMIN")
 def list_audit_logs():
+    """Truy vấn nhật ký kiểm toán hệ thống có lọc theo tiêu chí."""
     limit = request.args.get("limit", 50, type=int)
     action_filter = request.args.get("action", "").strip()
     status_filter = request.args.get("status", "").strip()
