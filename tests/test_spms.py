@@ -402,12 +402,10 @@ class SPMSTestSuite(unittest.TestCase):
 
     # ==========================================================================
     # CÁC TEST CASES XÁC THỰC JWT, PHÂN QUYỀN RBAC, CRUD USER/ROLE & OPENAPI/SWAGGER
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # ==========================================================================
 
     # --------------------------------------------------------------------------
     # Function: test_31_auth_login_success
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra đăng nhập thành công với tài khoản quản trị (admin),
     #                   xác minh trả về HTTP 200, access_token, refresh_token và ROLE_ADMIN.
     # --------------------------------------------------------------------------
@@ -424,7 +422,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_32_auth_login_invalid_password
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra đăng nhập thất bại khi sai mật khẩu, trả về HTTP 401 và mã lỗi INVALID_CREDENTIALS.
     # --------------------------------------------------------------------------
     def test_32_auth_login_invalid_password(self):
@@ -436,7 +433,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_33_auth_login_nonexistent_user
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra đăng nhập với tài khoản không tồn tại, trả về HTTP 401 và mã lỗi INVALID_CREDENTIALS.
     # --------------------------------------------------------------------------
     def test_33_auth_login_nonexistent_user(self):
@@ -448,7 +444,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_34_auth_get_me_with_token
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra truy xuất thông tin cá nhân qua endpoint /auth/me kèm Bearer token hợp lệ.
     # --------------------------------------------------------------------------
     def test_34_auth_get_me_with_token(self):
@@ -464,7 +459,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_35_auth_unauthorized_missing_token
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra chặn truy cập và trả về HTTP 401 UNAUTHORIZED khi gọi API yêu cầu xác thực mà không truyền token.
     # --------------------------------------------------------------------------
     def test_35_auth_unauthorized_missing_token(self):
@@ -475,7 +469,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_36_auth_refresh_token
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra cấp lại Access Token mới từ Refresh Token hợp lệ khi Access Token hết hạn.
     # --------------------------------------------------------------------------
     def test_36_auth_refresh_token(self):
@@ -490,7 +483,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_37_auth_rbac_admin_allowed
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra quyền hạn quản trị viên truy cập thành công API danh sách người dùng (/auth/users).
     # --------------------------------------------------------------------------
     def test_37_auth_rbac_admin_allowed(self):
@@ -506,7 +498,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_38_auth_rbac_forbidden_for_non_admin
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra ngăn chặn truy cập và trả về HTTP 403 FORBIDDEN khi người dùng không đủ quyền quản trị gọi API quản lý người dùng.
     # --------------------------------------------------------------------------
     def test_38_auth_rbac_forbidden_for_non_admin(self):
@@ -521,7 +512,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_39_auth_logout_revokes_tokens
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra đăng xuất thu hồi Refresh Token vào danh sách đen, ngăn chặn việc tái sử dụng refresh token sau khi logout.
     # --------------------------------------------------------------------------
     def test_39_auth_logout_revokes_tokens(self):
@@ -539,7 +529,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_40_auth_audit_logs_recorded
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra hệ thống tự động ghi nhật ký kiểm toán (Audit Logs) khi người dùng thực hiện thao tác đăng nhập.
     # --------------------------------------------------------------------------
     def test_40_auth_audit_logs_recorded(self):
@@ -555,7 +544,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_41_openapi_json_spec
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra đặc tả tài liệu API chuẩn OpenAPI 3.0.3 tại endpoint /api/v1/openapi.json, bao gồm định nghĩa các API và cơ chế BearerAuth.
     # --------------------------------------------------------------------------
     def test_41_openapi_json_spec(self):
@@ -571,7 +559,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_42_swagger_ui_html
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra giao diện người dùng Swagger UI hiển thị đúng qua các đường dẫn /api/docs, /docs và /swagger.
     # --------------------------------------------------------------------------
     def test_42_swagger_ui_html(self):
@@ -586,7 +573,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_43_create_user_by_admin
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra quản trị viên tạo mới tài khoản người dùng và gán vai trò, đồng thời xác minh phát hiện lỗi trùng tên đăng nhập.
     # --------------------------------------------------------------------------
     def test_43_create_user_by_admin(self):
@@ -616,7 +602,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_44_update_user_by_admin
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra quản trị viên cập nhật thông tin người dùng (họ tên, phòng ban, trạng thái khóa) qua endpoint PUT /auth/users/<id>.
     # --------------------------------------------------------------------------
     def test_44_update_user_by_admin(self):
@@ -640,7 +625,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_45_delete_user_by_admin
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra quản trị viên xóa người dùng và các phân quyền liên quan, xác minh truy vấn lại trả về 404.
     # --------------------------------------------------------------------------
     def test_45_delete_user_by_admin(self):
@@ -668,7 +652,6 @@ class SPMSTestSuite(unittest.TestCase):
 
     # --------------------------------------------------------------------------
     # Function: test_46_audit_logs_advanced_filter
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # Mục đích sử dụng: Kiểm tra bộ lọc tìm kiếm nâng cao nhật ký kiểm toán (theo action, status, phân trang limit).
     # --------------------------------------------------------------------------
     def test_46_audit_logs_advanced_filter(self):

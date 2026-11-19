@@ -23,7 +23,6 @@ auth_bp = Blueprint("auth_bp", __name__)
 
 # ------------------------------------------------------------------------------
 # Function: record_audit
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Ghi vết kiểm toán an ninh bất biến (Immutable Audit Trail) vào bảng spms_audit_logs mỗi khi có hành vi đăng nhập, đổi mật khẩu, sửa dữ liệu hoặc quản trị tài khoản
 # ------------------------------------------------------------------------------
 def record_audit(user_id: str, username: str, action: str, resource: str, status: str, details: str = ""):
@@ -55,7 +54,6 @@ def record_audit(user_id: str, username: str, action: str, resource: str, status
 # ------------------------------------------------------------------------------
 # Function: login
 # Endpoint: POST /api/v1/auth/login
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Tiếp nhận thông tin đăng nhập, xác minh mật khẩu băm, tự động khóa sau 5 lần nhập sai, cấp mã JWT Access Token và Refresh Token cho người dùng
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/login", methods=["POST"])
@@ -192,7 +190,6 @@ def login():
 # ------------------------------------------------------------------------------
 # Function: refresh_token
 # Endpoint: POST /api/v1/auth/refresh
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Tiếp nhận Refresh Token hợp lệ từ client để cấp mới Access Token mà không yêu cầu người dùng phải đăng nhập lại
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/refresh", methods=["POST"])
@@ -269,7 +266,6 @@ def refresh_token():
 # ------------------------------------------------------------------------------
 # Function: logout
 # Endpoint: POST /api/v1/auth/logout
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Thu hồi toàn bộ Refresh Token của người dùng trong CSDL và ghi nhận nhật ký kiểm toán Đăng xuất an toàn
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/logout", methods=["POST"])
@@ -296,7 +292,6 @@ def logout():
 # ------------------------------------------------------------------------------
 # Function: get_me
 # Endpoint: GET /api/v1/auth/me
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Trả về thông tin cá nhân, chức vụ, phòng ban và ma trận quyền hạn chi tiết của người dùng đang đăng nhập
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/me", methods=["GET"])
@@ -333,7 +328,6 @@ def get_me():
 # ------------------------------------------------------------------------------
 # Function: list_users
 # Endpoint: GET /api/v1/auth/users
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Dành riêng cho Quản trị viên (ROLE_ADMIN / PORT_ADMIN) truy xuất danh sách toàn bộ người dùng và vai trò trong hệ thống SPMS
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users", methods=["GET"])
@@ -365,7 +359,6 @@ def list_users():
 # ------------------------------------------------------------------------------
 # Function: create_user
 # Endpoint: POST /api/v1/auth/users
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Dành cho Quản trị viên tạo tài khoản cán bộ/nhân viên mới, tự động băm mật khẩu PBKDF2, gán vai trò và lưu vết kiểm toán USER_CREATE
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users", methods=["POST"])
@@ -437,7 +430,6 @@ def create_user():
 # ------------------------------------------------------------------------------
 # Function: get_user_by_id
 # Endpoint: GET /api/v1/auth/users/<user_id>
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Truy vấn thông tin chi tiết một tài khoản người dùng theo mã định danh user_id
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users/<user_id>", methods=["GET"])
@@ -470,7 +462,6 @@ def get_user_by_id(user_id):
 # ------------------------------------------------------------------------------
 # Function: update_user
 # Endpoint: PUT /api/v1/auth/users/<user_id>
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Dành cho Quản trị viên cập nhật thông tin nhân viên, phòng ban, phân lại vai trò hoặc khóa/mở khóa tài khoản
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users/<user_id>", methods=["PUT"])
@@ -521,7 +512,6 @@ def update_user(user_id):
 # ------------------------------------------------------------------------------
 # Function: delete_user
 # Endpoint: DELETE /api/v1/auth/users/<user_id>
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Dành cho Quản trị viên xóa tài khoản người dùng khỏi hệ thống và lưu vết kiểm toán USER_DELETE
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/users/<user_id>", methods=["DELETE"])
@@ -554,7 +544,6 @@ def delete_user(user_id):
 # ------------------------------------------------------------------------------
 # Function: list_roles
 # Endpoint: GET /api/v1/auth/roles
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Trả về danh mục toàn bộ các vai trò nghiệp vụ cảng biển được định nghĩa trong hệ thống SPMS
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/roles", methods=["GET"])
@@ -576,7 +565,6 @@ def list_roles():
 # ------------------------------------------------------------------------------
 # Function: list_audit_logs
 # Endpoint: GET /api/v1/auth/audit-logs
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Dành cho Quản trị viên truy vấn vết kiểm toán (Audit Trail) với bộ lọc đa tiêu chí: loại hành động, người thực hiện, trạng thái và giới hạn bản ghi
 # ------------------------------------------------------------------------------
 @auth_bp.route("/api/v1/auth/audit-logs", methods=["GET"])

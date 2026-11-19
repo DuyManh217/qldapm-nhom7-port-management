@@ -1,3 +1,10 @@
+# ==============================================================================
+# TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# MODULE: Cơ sở dữ liệu SQLite, Lược đồ quan hệ & Dữ liệu mẫu (Database Engine & Seed Data)
+# ==============================================================================
+
 import sqlite3
 import os
 import json
@@ -5,12 +12,20 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spms.db")
 
+# ------------------------------------------------------------------------------
+# Function: get_db
+# Mục đích sử dụng: Khởi tạo kết nối SQLite với Row factory và kích hoạt Foreign Keys PRAGMA.
+# ------------------------------------------------------------------------------
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
+# ------------------------------------------------------------------------------
+# Function: init_db
+# Mục đích sử dụng: Khởi tạo cấu trúc các bảng CSDL cho 2 phân hệ Vessel/Berth, Yard/Container và bảng bảo mật User/Role/Audit.
+# ------------------------------------------------------------------------------
 def init_db():
     conn = get_db()
     cur = conn.cursor()
@@ -38,6 +53,12 @@ def init_db():
         max_draft REAL NOT NULL,
         dwt INTEGER NOT NULL,
         teu INTEGER NOT NULL,
+        mmsi TEXT,
+        call_sign TEXT,
+        flag_state TEXT DEFAULT 'Panama',
+        vessel_type TEXT DEFAULT 'CONTAINER_SHIP',
+        status TEXT DEFAULT 'ACTIVE',
+        information_source TEXT DEFAULT 'Đăng kiểm / Lloyd''s',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     """)
@@ -60,9 +81,118 @@ def init_db():
         load_teu INTEGER DEFAULT 500,
         current_moves INTEGER DEFAULT 0,
         total_moves INTEGER DEFAULT 1000,
+        service_route TEXT DEFAULT 'IA1 (Nội Á)',
+        voyage TEXT DEFAULT '441N / 442S',
+        agent TEXT DEFAULT 'SNP Agency',
+        arrival_draft REAL DEFAULT 11.8,
+        departure_draft REAL DEFAULT 12.2,
+        berthing_side TEXT DEFAULT 'Port',
+        closed_at TEXT,
+        change_reason TEXT,
         FOREIGN KEY (imo) REFERENCES tbl_vessels(imo) ON DELETE CASCADE
     );
     """)
+
+    # 3.1 Bảng Phiên bản Kế hoạch Bến (tbl_berth_plan_versions - WF-VB-03 & WF-VB-04)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_berth_plan_versions (
+        version_id TEXT PRIMARY KEY,
+        version_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'DRAFT',
+        created_by TEXT NOT NULL DEFAULT 'Nguyễn Văn B (ACT_BP)',
+        approved_by TEXT,
+        effective_at TEXT,
+        change_reason TEXT,
+        is_locked INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # 3.2 Bảng Mốc sự kiện Lượt tàu & Đối chiếu đa nguồn (tbl_port_call_milestones - WF-VB-02 & WF-VB-05)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_port_call_milestones (
+        milestone_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id TEXT NOT NULL,
+        milestone_code TEXT NOT NULL,
+        milestone_name TEXT NOT NULL,
+        carrier_time TEXT,
+        tos_time TEXT,
+        ai_time TEXT,
+        ai_confidence REAL,
+        confirmed_time TEXT,
+        confirmed_by TEXT,
+        actual_time TEXT,
+        status TEXT DEFAULT 'PENDING',
+        FOREIGN KEY (call_id) REFERENCES tbl_port_calls(call_id) ON DELETE CASCADE
+    );
+    """)
+
+    # 3.3 Bảng Dịch vụ Hàng hải Điều phối (tbl_nautical_services - WF-VB-05)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_nautical_services (
+        service_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id TEXT NOT NULL,
+        service_type TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        requested_time TEXT NOT NULL,
+        location TEXT NOT NULL,
+        confirmation_status TEXT NOT NULL DEFAULT 'CONFIRMED',
+        actual_time TEXT,
+        FOREIGN KEY (call_id) REFERENCES tbl_port_calls(call_id) ON DELETE CASCADE
+    );
+    """)
+
+    # 3.4 Bảng Checklist Sẵn sàng Cập/Rời Bến (tbl_readiness_checklist - WF-VB-05)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_readiness_checklist (
+        item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id TEXT NOT NULL,
+        step_number INTEGER NOT NULL,
+        item_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PASS',
+        checked_by TEXT NOT NULL,
+        note TEXT,
+        FOREIGN KEY (call_id) REFERENCES tbl_port_calls(call_id) ON DELETE CASCADE
+    );
+    """)
+
+    # 3.5 Bảng Phân bổ Cẩu bờ & Giám sát Xếp dỡ (tbl_crane_assignments - WF-VB-06)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_crane_assignments (
+        assignment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id TEXT NOT NULL,
+        crane_id TEXT NOT NULL,
+        bay_no TEXT NOT NULL,
+        planned_moves INTEGER NOT NULL DEFAULT 500,
+        completed_moves INTEGER NOT NULL DEFAULT 0,
+        crane_status TEXT NOT NULL DEFAULT 'WORKING',
+        moves_per_hour REAL NOT NULL DEFAULT 28.5,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (call_id) REFERENCES tbl_port_calls(call_id) ON DELETE CASCADE
+    );
+    """)
+
+    # Đồng bộ các cột mới vào CSDL nếu đã tồn tại bảng cũ
+    for col, ctype in [
+        ("mmsi", "TEXT"), ("call_sign", "TEXT"), ("flag_state", "TEXT DEFAULT 'Panama'"),
+        ("vessel_type", "TEXT DEFAULT 'CONTAINER_SHIP'"), ("status", "TEXT DEFAULT 'ACTIVE'"),
+        ("information_source", "TEXT DEFAULT 'Đăng kiểm / Lloyd''s'")
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE tbl_vessels ADD COLUMN {col} {ctype};")
+        except sqlite3.OperationalError:
+            pass
+
+    for col, ctype in [
+        ("service_route", "TEXT DEFAULT 'IA1 (Nội Á)'"), ("voyage", "TEXT DEFAULT '441N / 442S'"),
+        ("agent", "TEXT DEFAULT 'SNP Agency'"), ("arrival_draft", "REAL DEFAULT 11.8"),
+        ("departure_draft", "REAL DEFAULT 12.2"), ("berthing_side", "TEXT DEFAULT 'Port'"),
+        ("closed_at", "TEXT"), ("change_reason", "TEXT")
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE tbl_port_calls ADD COLUMN {col} {ctype};")
+        except sqlite3.OperationalError:
+            pass
 
     # 4. Bảng Ô bãi (tbl_yard_slots)
     cur.execute("""
@@ -109,7 +239,6 @@ def init_db():
 
     # ==========================================================================
     # CÁC BẢNG BẢO MẬT, USER/ROLE & NHẬT KÝ KIỂM TOÁN (DOC 79, DOC 96, SCHEMA.SQL)
-    # Người thực hiện: Đào Văn Sơn - B23DCCN961
     # ==========================================================================
 
     # 7. Bảng Vai trò người dùng (spms_roles)
@@ -204,6 +333,39 @@ def init_db():
     );
     """)
 
+    # 14. Bảng Nhật ký kiểm toán phân hệ Tàu & Cầu bến (tbl_audit_logs - WF-VB-08)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS tbl_audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        performed_by TEXT NOT NULL,
+        change_summary TEXT,
+        previous_state TEXT,
+        new_state TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # Đồng bộ các cột bí danh phục vụ tính tương thích (backward/forward compatibility)
+    for col_def in [
+        ("tbl_berths", "berth_name TEXT"),
+        ("tbl_berths", "depth REAL"),
+        ("tbl_vessels", "vessel_name TEXT")
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]};")
+        except Exception:
+            pass
+
+    try:
+        cur.execute("UPDATE tbl_berths SET berth_name = name WHERE berth_name IS NULL OR berth_name = '';")
+        cur.execute("UPDATE tbl_berths SET depth = depth_draft WHERE depth IS NULL;")
+        cur.execute("UPDATE tbl_vessels SET vessel_name = name WHERE vessel_name IS NULL OR vessel_name = '';")
+    except Exception:
+        pass
+
     conn.commit()
 
     # Seed data if empty
@@ -211,12 +373,29 @@ def init_db():
     if cur.fetchone()[0] == 0:
         seed_data(conn)
 
+    cur.execute("SELECT COUNT(*) FROM tbl_audit_logs;")
+    if cur.fetchone()[0] == 0:
+        sample_audits = [
+            ("VESSEL", "9321483", "CREATE", "admin", "Đăng ký hồ sơ tàu EVER GIVEN"),
+            ("PORT_CALL", "PC-2609-014", "ALLOCATE", "Nguyễn Văn B (ACT_BP)", "Phân bổ cầu bến B3 cho tàu MSC GEMMA"),
+            ("BERTH_PLAN", "V.14", "SUBMIT", "Nguyễn Văn B (ACT_BP)", "Trình duyệt kế hoạch phân bổ bến tuần 43")
+        ]
+        cur.executemany("""
+        INSERT INTO tbl_audit_logs (entity_type, entity_id, action, performed_by, change_summary)
+        VALUES (?, ?, ?, ?, ?)
+        """, sample_audits)
+        conn.commit()
+
     cur.execute("SELECT COUNT(*) FROM spms_users;")
     if cur.fetchone()[0] == 0:
         seed_auth_data(conn)
 
     conn.close()
 
+# ------------------------------------------------------------------------------
+# Function: seed_data
+# Mục đích sử dụng: Khởi tạo dữ liệu mẫu ban đầu cho Cầu bến (B1-B6), Danh mục tàu (Vessel Master), Port Calls, Mốc sự kiện, Dịch vụ hàng hải, Checklist và Cẩu bờ.
+# ------------------------------------------------------------------------------
 def seed_data(conn):
     cur = conn.cursor()
     # Seed berths
@@ -240,6 +419,10 @@ def seed_data(conn):
         ("9708461", "COSCO SHIPPING UNIVERSE", "COSCO", 400.0, 58.6, 16.0, 199000, 21237),
         ("9110023", "HAI AN BELL", "Hai An Lines", 154.0, 25.0, 8.5, 14000, 1040),
         ("9234567", "TAN CANG GLORY", "SNP Shipping", 172.0, 27.5, 9.2, 18500, 1700),
+        ("9618298", "MSC GEMMA", "MSC", 294.0, 40.0, 12.5, 85000, 6500),
+        ("9784251", "MAERSK HANOI", "Maersk Line", 350.0, 48.2, 14.5, 145000, 11000),
+        ("9622980", "OOCL VIETNAM", "OOCL", 330.0, 45.0, 14.0, 100000, 8800),
+        ("9514789", "SITC HAINAN", "SITC", 180.0, 28.0, 9.5, 22000, 1800),
     ]
     cur.executemany("INSERT INTO tbl_vessels (imo, name, carrier, loa, beam, max_draft, dwt, teu) VALUES (?,?,?,?,?,?,?,?)", vessels)
 
@@ -248,11 +431,76 @@ def seed_data(conn):
         ("CALL-2026-001", "9110023", "HAI AN BELL", "B1", 50.0, 220.0, "2026-11-07 06:00", "2026-11-07 18:00", "MOORED", "2026-11-07 05:30", "2026-11-07 18:00", 450, 520, 650, 970),
         ("CALL-2026-002", "9234567", "TAN CANG GLORY", "B2", 350.0, 540.0, "2026-11-07 08:00", "2026-11-07 22:00", "OPERATING", "2026-11-07 07:15", "2026-11-07 22:00", 780, 600, 420, 1380),
         ("CALL-2026-003", "9229843", "MSC LAUREN", "B3", 800.0, 1200.0, "2026-11-07 12:00", "2026-11-08 04:00", "APPROVED", "2026-11-07 11:30", "2026-11-08 04:00", 1500, 1200, 0, 2700),
+        ("PC-2609-011", "9321483", "EVER GIVEN", "B1", 10.0, 290.0, "2026-10-18 08:00", "2026-10-18 16:50", "DEPARTED", "2026-10-18 07:30", "2026-10-18 16:50", 450, 250, 700, 700),
+        ("PC-2609-012", "9784251", "MAERSK HANOI", "B3", 560.0, 910.0, "2026-10-18 10:30", "2026-10-19 19:45", "OPERATING", "2026-10-18 10:00", "2026-10-19 19:45", 540, 540, 950, 1080),
+        ("PC-2609-014", "9618298", "MSC GEMMA", "B3", 565.0, 859.0, "2026-10-18 20:15", "2026-10-19 14:30", "CONFIRMED", "2026-10-18 13:15", "2026-10-19 19:30", 420, 380, 0, 800),
+        ("PC-2609-015", "9484431", "CMA CGM ANTOINE", "B2", 310.0, 530.0, "2026-10-18 14:00", "2026-10-19 12:00", "OPERATING", "2026-10-18 13:30", "2026-10-19 12:00", 320, 320, 210, 640),
+        ("PC-2609-016", "9622980", "OOCL VIETNAM", "B4", 930.0, 1210.0, "2026-10-18 16:00", "2026-10-19 08:00", "APPROVED", "2026-10-18 15:30", "2026-10-19 08:00", 600, 500, 0, 1100),
     ]
     cur.executemany("""
     INSERT INTO tbl_port_calls (call_id, imo, vessel_name, berth_id, start_meter, end_meter, start_time, end_time, status, eta, etd, discharge_teu, load_teu, current_moves, total_moves)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, calls)
+
+    # Seed berth plan versions (WF-VB-04)
+    versions = [
+        ("V.13", "Bản Kế hoạch Bến Tuần 42/2026", "OFFICIAL_PUBLISHED", "Nguyễn Văn B (ACT_BP)", "Trần Minh D (ACT_PA)", "2026-10-18 10:00", "Đã công bố chính thức và khóa thực hiện", 1),
+        ("V.14", "Bản Kế hoạch Phân bổ Cầu bến Tuần 43/2026", "PENDING_APPROVAL", "Nguyễn Văn B (ACT_BP)", None, None, "Đang chờ Trưởng phòng Điều độ phê duyệt", 0),
+    ]
+    cur.executemany("""
+    INSERT OR REPLACE INTO tbl_berth_plan_versions (version_id, version_name, status, created_by, approved_by, effective_at, change_reason, is_locked)
+    VALUES (?,?,?,?,?,?,?,?)
+    """, versions)
+
+    # Seed milestones (WF-VB-02 & WF-VB-05)
+    milestones = [
+        ("PC-2609-014", "ETA", "Thời gian đến phao số 0", "2026-10-18 12:00", "2026-10-18 12:30", "2026-10-18 13:15", 89.0, "2026-10-18 13:15", "AI_ENGINE", None, "CONFIRMED"),
+        ("PC-2609-014", "ETD", "Thời gian rời bến", "2026-10-19 18:00", "2026-10-19 15:00", "2026-10-19 19:30", 85.0, "2026-10-19 19:30", "ACT_BP", None, "CONFIRMED"),
+        ("PC-2609-014", "POB", "Hoa tiêu lên tàu (Pilot on Board)", None, None, None, None, "2026-10-18 19:00", "ACT_BP", "2026-10-18 19:05", "CONFIRMED"),
+        ("PC-2609-014", "FIRST_LINE", "Dây buộc đầu tiên cập bến", None, None, None, None, "2026-10-18 20:10", "ACT_BP", "2026-10-18 20:12", "CONFIRMED"),
+        ("PC-2609-014", "ALL_FAST", "Cố định toàn bộ dây (All Fast)", None, None, None, None, "2026-10-18 20:30", "ACT_BP", None, "PENDING"),
+    ]
+    cur.executemany("""
+    INSERT INTO tbl_port_call_milestones (call_id, milestone_code, milestone_name, carrier_time, tos_time, ai_time, ai_confidence, confirmed_time, confirmed_by, actual_time, status)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    """, milestones)
+
+    # Seed nautical services (WF-VB-05)
+    services = [
+        ("PC-2609-014", "Hoa tiêu (Pilot)", "Hoa tiêu Hàng hải KV", "2026-10-18 19:00", "Phao số 0", "CONFIRMED", "2026-10-18 19:05"),
+        ("PC-2609-014", "Lai dắt (Tugboat)", "Tugboat-01, Tugboat-02", "2026-10-18 19:45", "Khu quay trở", "REQUESTED", None),
+        ("PC-2609-014", "Buộc dây (Mooring)", "Tổ Buộc dây Bến 3", "2026-10-18 20:10", "Cọc bích B3-12..20", "CONFIRMED", None),
+    ]
+    cur.executemany("""
+    INSERT INTO tbl_nautical_services (call_id, service_type, provider_id, requested_time, location, confirmation_status, actual_time)
+    VALUES (?,?,?,?,?,?,?)
+    """, services)
+
+    # Seed readiness checklist (WF-VB-05)
+    checklist = [
+        ("PC-2609-014", 1, "Bến trống & Đệm va an toàn", "PASS", "ACT_RO (18/10 18:30)", "Kiểm tra đo đạc đạt chuẩn 15m"),
+        ("PC-2609-014", 2, "Điều kiện Thời tiết & Thủy triều", "PASS", "Trạm Khí tượng", "Gió cấp 4 < cấp 6; Tầm nhìn 3 hải lý; Triều cường +2.4m"),
+        ("PC-2609-014", 3, "Nguồn lực Cầu bờ (QC-05, QC-06, QC-07)", "PASS", "Tổ Thiết bị & IoT", "3 cẩu sẵn sàng vận hành"),
+        ("PC-2609-014", 4, "Dịch vụ Hàng hải (Hoa tiêu + 02 Tàu lai)", "PENDING", "Đội Tàu lai SNP", "Đang bố trí tàu lai thứ 2"),
+        ("PC-2609-014", 5, "Thủ tục Cục Hàng hải VN & Chi cục Hải quan", "PASS", "Phòng Thủ tục Cảng", "Đã thông quan & đính kèm lệnh điều động"),
+    ]
+    cur.executemany("""
+    INSERT INTO tbl_readiness_checklist (call_id, step_number, item_name, status, checked_by, note)
+    VALUES (?,?,?,?,?,?)
+    """, checklist)
+
+    # Seed crane assignments (WF-VB-06)
+    cranes = [
+        ("PC-2609-012", "QC-05", "Bay 14", 540, 480, "WORKING", 28.5),
+        ("PC-2609-012", "QC-06", "Bay 22", 540, 470, "WORKING", 28.5),
+        ("PC-2609-015", "QC-02", "Bay 08", 320, 90, "PAUSED", 12.0),
+        ("PC-2609-015", "QC-03", "Bay 18", 320, 120, "WORKING", 16.4),
+        ("PC-2609-011", "QC-01", "Bay 12", 700, 450, "WORKING", 27.0),
+    ]
+    cur.executemany("""
+    INSERT INTO tbl_crane_assignments (call_id, crane_id, bay_no, planned_moves, completed_moves, crane_status, moves_per_hour)
+    VALUES (?,?,?,?,?,?,?)
+    """, cranes)
 
     # Seed yard slots
     slots = []
@@ -292,7 +540,6 @@ def seed_data(conn):
 
 # ------------------------------------------------------------------------------
 # Function: seed_auth_data
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Khởi tạo dữ liệu mẫu cho các vai trò (spms_roles), quyền hạn (spms_permissions) và tài khoản người dùng mặc định kèm mật khẩu băm PBKDF2 (admin, dispatcher, operator, security, accountant, customer)
 # ------------------------------------------------------------------------------
 def seed_auth_data(conn):

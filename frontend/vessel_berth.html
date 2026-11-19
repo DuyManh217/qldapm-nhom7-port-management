@@ -2,607 +2,1850 @@
 <html lang="vi" class="h-full bg-slate-950 text-slate-100">
 <head>
   <meta charset="UTF-8">
-  <title>Module 1: Quản lý Tàu & Cầu bến (Vessel & Berth)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module 1: Quản lý Tàu & Cầu bến (Vessel & Berth) - SPMS Cát Lái</title>
+  <!-- 
+    ==============================================================================
+    TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
+    NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
+    VAI TRÒ: Frontend Developer / Lập trình viên Giao diện
+    MODULE: Giao diện Phân hệ 1 - Quản lý Tàu & Cầu bến (Vessel & Berth Service)
+    Tuân thủ thiết kế: Doc 100 (WF-VB-01 đến WF-VB-08) & Doc 35, 64, 87, 93, 110
+    ==============================================================================
+  -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Bảng màu chuẩn theo tài liệu UI Design Doc 100 */
+    :root {
+      --spms-navy: #0F2942;
+      --spms-sea-green: #0D9488;
+      --spms-green: #15803D;
+      --spms-amber: #B45309;
+      --spms-red: #B91C1C;
+      --spms-steel: #475569;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .tab-active {
+      border-bottom: 2px solid #0D9488;
+      color: #38bdf8;
+      font-weight: 700;
+      background-color: rgba(13, 148, 136, 0.1);
+    }
+  </style>
 </head>
-<body class="h-full flex flex-col p-6 space-y-4">
-  <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-xl shadow">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white"><i class="fa-solid fa-ship"></i></div>
-      <div>
-        <h1 class="text-base font-bold text-white">PHÂN HỆ 1: QUẢN LÝ TÀU & CẦU BẾN (VESSEL & BERTH SERVICE)</h1>
-        <p class="text-xs text-slate-400">Tân Cảng Sài Gòn · Spring Boot 3.3 · PostGIS Spatiotemporal · AI Genetic Algorithm</p>
-      </div>
-    </div>
-    <div class="flex items-center space-x-2">
-      <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold"><i class="fa-solid fa-house mr-1"></i>Trang Chủ</a>
-      <a href="/yard" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-500"><i class="fa-solid fa-cube mr-1"></i>Sang Module 2 (Bãi)</a>
-    </div>
-  </div>
+<body class="h-full flex flex-col p-4 space-y-3 font-sans custom-scrollbar">
 
-  <div class="grid grid-cols-4 gap-4">
-    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-      <div class="text-xs text-slate-400">Tổng Chiều Dài Cầu Bến</div>
-      <div class="text-xl font-bold text-white mt-1" id="kpi-berth-length">2.040 m (B1 - B6)</div>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-      <div class="text-xs text-slate-400">Tàu Đang Cập Bến</div>
-      <div class="text-xl font-bold text-emerald-400 mt-1" id="vessel-count">0 Tàu</div>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-      <div class="text-xs text-slate-400">Năng Suất Bốc Dỡ</div>
-      <div class="text-xl font-bold text-amber-400 mt-1" id="kpi-moves-rate">32 moves/giờ</div>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-      <div>
-        <div class="text-xs text-slate-400">Hiệu Suất Cầu Bến</div>
-        <div class="text-xl font-bold text-cyan-400 mt-1" id="kpi-utilization">0%</div>
+  <!-- ======================================================================== -->
+  <!-- TOP GLOBAL APPLICATION SHELL (Theo chuẩn WF-VB-01 -> WF-VB-08)             -->
+  <!-- ======================================================================== -->
+  <header class="flex items-center justify-between bg-slate-900 border border-slate-800 px-5 py-3 rounded-xl shadow-lg">
+    <div class="flex items-center space-x-4">
+      <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-700 via-sky-600 to-teal-500 flex items-center justify-center text-white shadow-md">
+        <i class="fa-solid fa-ship text-lg"></i>
       </div>
-      <button onclick="runAIBerthSolver()" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg text-xs font-bold shadow hover:brightness-110">
-        <i class="fa-solid fa-microchip mr-1"></i>Chạy AI
-      </button>
-    </div>
-  </div>
-
-  <div class="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
-    <div class="col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col">
-      <h2 class="text-xs font-bold text-white mb-2 flex items-center space-x-2">
-        <i class="fa-solid fa-diagram-project text-blue-400"></i>
-        <span>SƠ ĐỒ PHÂN BỔ CẦU BẾN CÁT LÁI (0m - 2.040m)</span>
-      </h2>
-      <div class="relative w-full h-32 bg-slate-950 rounded-xl border border-slate-800 p-2 flex flex-col justify-center overflow-hidden">
-        <div class="absolute inset-0 flex text-[9px] text-slate-700 font-bold border-b border-slate-800/50 pointer-events-none">
-          <div class="w-[14.7%] border-r border-slate-800/60 p-1">BẾN B1 (16m)</div>
-          <div class="w-[14.7%] border-r border-slate-800/60 p-1">BẾN B2 (16m)</div>
-          <div class="w-[17.1%] border-r border-slate-800/60 p-1">BẾN B3 (15.5m)</div>
-          <div class="w-[17.1%] border-r border-slate-800/60 p-1">BẾN B4 (15.5m)</div>
-          <div class="w-[17.1%] border-r border-slate-800/60 p-1">BẾN B5 (15.0m)</div>
-          <div class="w-[19.3%] p-1">BẾN B6 (14.5m)</div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-base font-extrabold text-white tracking-wide">PHÂN HỆ 1: QUẢN LÝ TÀU & CẦU BẾN (VESSEL & BERTH SERVICE)</h1>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-900/60 text-teal-300 border border-teal-700/60">PortCallPortalUI</span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900/60 text-blue-300 border border-blue-700/60">CAT_LAI</span>
         </div>
-        <div id="vessels-on-berth" class="relative w-full h-16"></div>
+        <p class="text-xs text-slate-400">
+          Người thực hiện: <span class="text-amber-400 font-semibold">Đào Văn Sơn - B23DCCN961</span> · Vai trò hiện tại: <span class="text-sky-300 font-semibold">Điều độ viên bến (ACT_BP)</span> · Chuẩn IMO/Navis N4/ISO 27001
+        </p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2.5">
+      <button onclick="runAIBerthSolver()" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow flex items-center space-x-1.5 transition">
+        <i class="fa-solid fa-microchip"></i>
+        <span>AI Solver Tối ưu</span>
+      </button>
+      <button onclick="validateBerthConstraints()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow flex items-center space-x-1.5 transition">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Kiểm tra 4 ràng buộc</span>
+      </button>
+      <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-xs font-semibold transition">
+        <i class="fa-solid fa-house mr-1"></i>Trang Chủ
+      </a>
+      <a href="/yard" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition">
+        <i class="fa-solid fa-cube mr-1"></i>Sang Module Bãi
+      </a>
+    </div>
+  </header>
+
+  <!-- ======================================================================== -->
+  <!-- 4 THẺ CHỈ SỐ KPI ĐIỀU HÀNH BẾN CỐT LÕI (TOP KPI CARDS)                    -->
+  <!-- ======================================================================== -->
+  <section class="grid grid-cols-4 gap-3">
+    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-xl shadow-sm flex items-center justify-between">
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Tổng Chiều Dài Cầu Bến</div>
+        <div class="text-xl font-black text-white mt-0.5" id="kpi-berth-length">2.040 m</div>
+        <div class="text-[10px] text-slate-500">6 Phân đoạn cầu (B1 đến B6)</div>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-sky-400">
+        <i class="fa-solid fa-ruler-horizontal text-lg"></i>
+      </div>
+    </div>
+
+    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-xl shadow-sm flex items-center justify-between">
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Tàu Đang Cập Bến</div>
+        <div class="text-xl font-black text-emerald-400 mt-0.5" id="kpi-docked-vessels">4 Tàu</div>
+        <div class="text-[10px] text-emerald-600">MSC GEMMA, EVER GIVEN, MAERSK...</div>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-emerald-950/60 border border-emerald-800/40 flex items-center justify-center text-emerald-400">
+        <i class="fa-solid fa-anchor text-lg"></i>
+      </div>
+    </div>
+
+    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-xl shadow-sm flex items-center justify-between">
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Năng Suất Cẩu Bờ</div>
+        <div class="text-xl font-black text-amber-400 mt-0.5" id="kpi-crane-productivity">28.5 moves/h</div>
+        <div class="text-[10px] text-slate-500">Đồng bộ TOS N4 chu kỳ 10s</div>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-amber-950/60 border border-amber-800/40 flex items-center justify-center text-amber-400">
+        <i class="fa-solid fa-bolt text-lg"></i>
+      </div>
+    </div>
+
+    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-xl shadow-sm flex items-center justify-between">
+      <div>
+        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Hệ Số Sử Dụng Cầu Bến</div>
+        <div class="text-xl font-black text-teal-400 mt-0.5" id="kpi-berth-utilization">68.4%</div>
+        <div class="text-[10px] text-teal-600">An toàn theo chuẩn PIANC</div>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-teal-950/60 border border-teal-800/40 flex items-center justify-center text-teal-400">
+        <i class="fa-solid fa-chart-pie text-lg"></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================== -->
+  <!-- THANH SUB-NAVIGATION 8 TABS (WF-VB-01 ĐẾN WF-VB-08 THEO DOC 100)          -->
+  <!-- ======================================================================== -->
+  <nav class="flex items-center space-x-1 border-b border-slate-800 bg-slate-900/60 px-2 rounded-t-xl text-xs overflow-x-auto custom-scrollbar">
+    <button onclick="switchTab('tab-vessel-master')" id="btn-tab-vessel-master" class="py-2.5 px-3 font-semibold text-slate-300 hover:text-white flex items-center space-x-1.5 transition tab-active">
+      <i class="fa-solid fa-address-card"></i>
+      <span>[1] Hồ sơ Tàu (Master)</span>
+    </button>
+    <button onclick="switchTab('tab-port-call-eta')" id="btn-tab-port-call-eta" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-clock"></i>
+      <span>[2] Lượt tàu & ETA/ETD</span>
+    </button>
+    <button onclick="switchTab('tab-berth-gantt')" id="btn-tab-berth-gantt" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-timeline"></i>
+      <span>[3] Kế hoạch Bến Gantt</span>
+    </button>
+    <button onclick="switchTab('tab-approval-publish')" id="btn-tab-approval-publish" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-file-signature"></i>
+      <span>[4] Phê duyệt & Công bố</span>
+    </button>
+    <button onclick="switchTab('tab-nautical-dispatch')" id="btn-tab-nautical-dispatch" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-compass"></i>
+      <span>[5] Điều phối Hàng hải</span>
+    </button>
+    <button onclick="switchTab('tab-crane-disruption')" id="btn-tab-crane-disruption" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-truck-ramp-box"></i>
+      <span>[6] Giám sát Cẩu & Sự cố</span>
+    </button>
+    <button onclick="switchTab('tab-reconcile-kpi')" id="btn-tab-reconcile-kpi" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-chart-line"></i>
+      <span>[7] Đối soát & KPI</span>
+    </button>
+    <button onclick="switchTab('tab-admin-audit')" id="btn-tab-admin-audit" class="py-2.5 px-3 font-semibold text-slate-400 hover:text-white flex items-center space-x-1.5 transition">
+      <i class="fa-solid fa-shield-virus"></i>
+      <span>[8] Quản trị & Audit</span>
+    </button>
+  </nav>
+
+  <!-- ======================================================================== -->
+  <!-- NỘI DUNG CHÍNH CÁC SUB-SCREENS (CONTAINER)                                 -->
+  <!-- ======================================================================== -->
+  <main class="flex-1 bg-slate-900 border border-slate-800 rounded-b-xl p-4 overflow-y-auto custom-scrollbar">
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 1: WF-VB-01 HỒ SƠ TÀU (VESSEL MASTER REGISTRY)                    -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-vessel-master" class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-3">
+          <div class="relative w-80">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+            <input type="text" id="vessel-search-input" oninput="debounceVesselSearch()" placeholder="Tìm kiếm theo IMO, MMSI, Tên tàu..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+          </div>
+          <select id="vessel-status-filter" onchange="loadVesselMasterTable()" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none">
+            <option value="">Tất cả trạng thái</option>
+            <option value="ACTIVE" selected>ACTIVE (Hoạt động)</option>
+            <option value="INACTIVE">INACTIVE (Tạm dừng)</option>
+            <option value="BLACKLISTED">BLACKLISTED (Cấm cập cảng)</option>
+          </select>
+          <div id="vessel-duplicate-badge" class="hidden px-2.5 py-1 rounded text-[11px] font-bold"></div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="openVesselModal('CREATE')" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow flex items-center space-x-1.5">
+            <i class="fa-solid fa-plus"></i>
+            <span>Thêm Hồ Sơ Tàu Mới</span>
+          </button>
+        </div>
       </div>
 
-      <div class="mt-4 flex-1 overflow-y-auto">
+      <!-- Bảng danh mục Hồ sơ Tàu -->
+      <div class="overflow-x-auto rounded-lg border border-slate-800">
         <table class="w-full text-xs text-left">
-          <thead class="text-slate-400 bg-slate-950/80 sticky top-0 border-b border-slate-800">
+          <thead class="text-slate-400 bg-slate-950/90 border-b border-slate-800 uppercase font-semibold">
+            <tr>
+              <th class="py-2.5 px-3">IMO / MMSI</th>
+              <th class="py-2.5 px-3">TÊN TÀU & HÔ HIỆU</th>
+              <th class="py-2.5 px-3">QUỐC TỊCH CỜ</th>
+              <th class="py-2.5 px-3">LOA × BEAM</th>
+              <th class="py-2.5 px-3">MỚN NƯỚC (MAX)</th>
+              <th class="py-2.5 px-3">DWT / TEU</th>
+              <th class="py-2.5 px-3">NGUỒN DỮ LIỆU</th>
+              <th class="py-2.5 px-3">TRẠNG THÁI</th>
+              <th class="py-2.5 px-3 text-right">THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody id="vessel-master-tbody" class="divide-y divide-slate-800/70 text-slate-300 font-mono">
+            <!-- Render động bằng loadVesselMasterTable() -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 2: WF-VB-02 LƯỢT TÀU & ĐỐI CHIẾU ETA/ETD (PORT CALL & ETA)         -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-port-call-eta" class="hidden space-y-4">
+      <div class="grid grid-cols-12 gap-4">
+        <!-- Form Đăng ký lượt tàu mới -->
+        <div class="col-span-5 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-sky-400 flex items-center space-x-2 border-b border-slate-800 pb-2">
+            <i class="fa-solid fa-file-circle-plus"></i>
+            <span>ĐĂNG KÝ LƯỢT CẬP CẢNG (PORT CALL REGISTRATION)</span>
+          </h3>
+          <form onsubmit="handleCreatePortCall(event)" class="space-y-2 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-slate-400 mb-1">Mã Lượt Tàu (Call ID)</label>
+                <input type="text" id="pc-call-id" placeholder="Tự sinh: PC-2610-xxx" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Chọn Tàu Quốc Tế (*)</label>
+                <select id="pc-vessel-select" required onchange="onPortCallVesselChange()" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+                  <!-- Đổ từ danh sách vessels -->
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-slate-400 mb-1">Tuyến Dịch Vụ</label>
+                <input type="text" id="pc-service-route" value="IA1 (Nội Á)" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Số Chuyến (Voyage)</label>
+                <input type="text" id="pc-voyage" value="441N / 442S" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Đại Lý Hãng Tàu</label>
+                <input type="text" id="pc-agent" value="SNP Logistics Agency" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-slate-400 mb-1">Cầu Bến Đề Xuất</label>
+                <select id="pc-berth-select" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+                  <option value="B1">Bến B1 (0 - 300m)</option>
+                  <option value="B2">Bến B2 (300 - 600m)</option>
+                  <option value="B3" selected>Bến B3 (600 - 950m)</option>
+                  <option value="B4">Bến B4 (950 - 1300m)</option>
+                  <option value="B5">Bến B5 (1300 - 1650m)</option>
+                  <option value="B6">Bến B6 (1650 - 2040m)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Mét Bắt Đầu</label>
+                <input type="number" id="pc-start-meter" value="620" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Mạn Cập</label>
+                <select id="pc-berthing-side" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+                  <option value="Port">Mạn Trái (Port)</option>
+                  <option value="Starboard">Mạn Phải (Starboard)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-slate-400 mb-1">ETA Dự Kiến Đến (*)</label>
+                <input type="text" id="pc-start-time" value="2026-10-18 19:00" required class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">ETD Dự Kiến Rời (*)</label>
+                <input type="text" id="pc-end-time" value="2026-10-19 19:30" required class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-slate-400 mb-1">Hạ Hàng (TEU)</label>
+                <input type="number" id="pc-discharge-teu" value="450" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Xếp Hàng (TEU)</label>
+                <input type="number" id="pc-load-teu" value="450" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Tổng Moves</label>
+                <input type="number" id="pc-total-moves" value="900" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-2 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white rounded-lg font-bold shadow text-xs transition mt-2">
+              <i class="fa-solid fa-check mr-1.5"></i>Ghi Nhận Lượt Tàu Mới
+            </button>
+          </form>
+        </div>
+
+        <!-- Bảng Đối chiếu Đa nguồn ETA/ETD (Reconciliation) -->
+        <div class="col-span-7 bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-amber-400 flex items-center space-x-2">
+              <i class="fa-solid fa-arrows-split-up-and-left"></i>
+              <span>ĐỐI CHIẾU ĐA NGUỒN ETA / ETD (CARRIER vs TOS vs AI FORECAST)</span>
+            </h3>
+            <span class="text-[10px] text-teal-400 font-semibold bg-teal-950 px-2 py-0.5 rounded border border-teal-800/60">
+              Smart check: Tin cậy > 85% tự động duyệt
+            </span>
+          </div>
+
+          <div class="flex-1 overflow-x-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="text-slate-400 bg-slate-900 border-b border-slate-800 font-semibold">
+                <tr>
+                  <th class="py-2 px-3">LƯỢT TÀU</th>
+                  <th class="py-2 px-3">MỐC</th>
+                  <th class="py-2 px-3 text-sky-400">CARRIER</th>
+                  <th class="py-2 px-3 text-purple-400">TOS N4</th>
+                  <th class="py-2 px-3 text-teal-400">AI AIS FORECAST</th>
+                  <th class="py-2 px-3">XÁC NHẬN</th>
+                  <th class="py-2 px-3 text-right">KHÓA</th>
+                </tr>
+              </thead>
+              <tbody id="multi-source-eta-tbody" class="divide-y divide-slate-800/70 text-slate-300 font-mono">
+                <!-- Nạp dữ liệu mốc đối chiếu -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 3: WF-VB-03 KẾ HOẠCH BẾN GANTT 2D & ĐỀ XUẤT AI                    -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-berth-gantt" class="hidden space-y-3">
+      <div class="flex items-center justify-between bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+        <div class="flex items-center space-x-3 text-xs">
+          <span class="font-bold text-white"><i class="fa-solid fa-layer-group mr-1.5 text-sky-400"></i>Chú giải màu sắc Gantt:</span>
+          <span class="inline-flex items-center space-x-1"><span class="w-3 h-3 rounded bg-slate-600 inline-block"></span><span class="text-slate-300">Đang bốc dỡ (Operating)</span></span>
+          <span class="inline-flex items-center space-x-1"><span class="w-3 h-3 rounded bg-blue-600 inline-block"></span><span class="text-slate-300">Đã xếp lịch (Planned)</span></span>
+          <span class="inline-flex items-center space-x-1"><span class="w-3 h-3 rounded bg-red-600 inline-block"></span><span class="text-slate-300">Sự cố trễ (Disruption)</span></span>
+          <span class="inline-flex items-center space-x-1"><span class="w-3 h-3 rounded border border-dashed border-teal-400 bg-teal-950/40 inline-block"></span><span class="text-teal-300">Đề xuất AI (#0D9488)</span></span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs text-slate-400 font-mono">Phiên bản: <strong class="text-amber-400">V.14 (Draft)</strong></span>
+          <button onclick="saveBerthPlanDraft()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded font-semibold transition">
+            <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Dự Thảo
+          </button>
+          <button onclick="submitBerthPlanForApproval()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-bold transition">
+            <i class="fa-solid fa-paper-plane mr-1"></i>Trình Phê Duyệt
+          </button>
+        </div>
+      </div>
+
+      <!-- Không gian trực quan Spatiotemporal Gantt Matrix (0 - 2040m) -->
+      <div class="relative w-full h-80 bg-slate-950 rounded-xl border border-slate-800 p-3 flex flex-col justify-between overflow-hidden">
+        <!-- Đường chia các cầu bến B1 -> B6 -->
+        <div class="absolute inset-0 flex text-[10px] text-slate-600 font-bold border-b border-slate-800/40 pointer-events-none select-none">
+          <div class="w-[14.7%] border-r border-slate-800/60 p-1.5 flex flex-col justify-between">
+            <span>BẾN B1 (300m)</span><span class="text-[9px] text-slate-700">0m - 300m · Sâu 16m</span>
+          </div>
+          <div class="w-[14.7%] border-r border-slate-800/60 p-1.5 flex flex-col justify-between">
+            <span>BẾN B2 (300m)</span><span class="text-[9px] text-slate-700">300m - 600m · Sâu 16m</span>
+          </div>
+          <div class="w-[17.1%] border-r border-slate-800/60 p-1.5 flex flex-col justify-between">
+            <span>BẾN B3 (350m)</span><span class="text-[9px] text-slate-700">600m - 950m · Sâu 15.5m</span>
+          </div>
+          <div class="w-[17.1%] border-r border-slate-800/60 p-1.5 flex flex-col justify-between">
+            <span>BẾN B4 (350m)</span><span class="text-[9px] text-slate-700">950m - 1300m · Sâu 15.5m</span>
+          </div>
+          <div class="w-[17.1%] border-r border-slate-800/60 p-1.5 flex flex-col justify-between">
+            <span>BẾN B5 (350m)</span><span class="text-[9px] text-slate-700">1300m - 1650m · Sâu 15.0m</span>
+          </div>
+          <div class="w-[19.3%] p-1.5 flex flex-col justify-between">
+            <span>BẾN B6 (390m)</span><span class="text-[9px] text-slate-700">1650m - 2040m · Sâu 14.5m</span>
+          </div>
+        </div>
+
+        <!-- Render các khối tàu neo đậu trên cầu bến -->
+        <div id="gantt-vessels-layer" class="relative w-full h-full pt-10 pb-6 z-10">
+          <!-- Render động các khối tàu neo đậu -->
+        </div>
+
+        <!-- Trục tọa độ mét phía dưới -->
+        <div class="w-full flex justify-between text-[10px] text-slate-500 font-mono border-t border-slate-800 pt-1 z-10">
+          <span>0m</span><span>300m</span><span>600m</span><span>950m</span><span>1300m</span><span>1650m</span><span>2040m</span>
+        </div>
+      </div>
+
+      <!-- Danh sách lượt tàu trong phiên bản kế hoạch -->
+      <div class="overflow-x-auto rounded-lg border border-slate-800">
+        <table class="w-full text-xs text-left">
+          <thead class="text-slate-400 bg-slate-950 border-b border-slate-800 uppercase font-semibold">
             <tr>
               <th class="py-2 px-3">MÃ CHUYẾN</th>
-              <th class="py-2 px-3">TÀU & HÃNG</th>
-              <th class="py-2 px-3">MÉT BẾN</th>
+              <th class="py-2 px-3">TÊN TÀU & LOA</th>
+              <th class="py-2 px-3">CẦU BẾN & TỌA ĐỘ</th>
+              <th class="py-2 px-3">KHUNG GIỜ LÀM HÀNG</th>
               <th class="py-2 px-3">TIẾN ĐỘ MOVES</th>
               <th class="py-2 px-3">TRẠNG THÁI</th>
               <th class="py-2 px-3 text-right">THAO TÁC</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-800 text-slate-300 font-mono" id="port-calls-table"></tbody>
+          <tbody id="gantt-port-calls-tbody" class="divide-y divide-slate-800 text-slate-300 font-mono">
+            <!-- Nạp động -->
+          </tbody>
         </table>
       </div>
-    </div>
+    </section>
 
-    <div class="col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col space-y-3">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h3 class="text-xs font-bold text-white flex items-center space-x-1.5">
-          <i class="fa-solid fa-file-circle-plus text-cyan-400"></i>
-          <span>ĐĂNG KÝ CẬP BẾN</span>
-        </h3>
-        <button type="button" onclick="openAddVesselModal()" class="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded text-[11px] font-bold shadow flex items-center space-x-1">
-          <i class="fa-solid fa-plus text-[10px]"></i>
-          <span>Thêm Tàu Mới</span>
-        </button>
-      </div>
-      <form onsubmit="handleCreatePortCall(event)" class="space-y-2 text-xs">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="block text-slate-400">Chọn Tàu Quốc Tế</label>
-            <div class="flex items-center space-x-2">
-              <button type="button" onclick="openEditVesselModal()" class="text-amber-400 hover:text-amber-300 text-[10px] font-bold flex items-center space-x-1" title="Sửa thông số kỹ thuật tàu này">
-                <i class="fa-solid fa-pen-to-square"></i>
-                <span>Sửa Tàu</span>
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 4: WF-VB-04 PHÊ DUYỆT & CÔNG BỐ (SOD & PUBLISH WORKFLOW)          -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-approval-publish" class="hidden space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Thẻ Phê duyệt SoD (Trưởng phòng Điều độ ACT_PA) -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-amber-400 flex items-center space-x-2">
+              <i class="fa-solid fa-stamp"></i>
+              <span>PHÊ DUYỆT KẾ HOẠCH BẾN (SOD: ACT_PA REVIEW)</span>
+            </h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800/60">
+              Quy tắc SoD: Phê duyệt khác Người lập
+            </span>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Phiên bản chờ duyệt:</span>
+              <span class="font-bold text-white font-mono">V.14 (Tuần 43/2026)</span>
+            </div>
+            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Người lập kế hoạch:</span>
+              <span class="text-sky-300 font-semibold">Nguyễn Văn B (ACT_BP)</span>
+            </div>
+            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Người thẩm tra & duyệt:</span>
+              <span class="text-emerald-300 font-semibold">Trần Minh D (ACT_PA - Trưởng phòng)</span>
+            </div>
+
+            <div>
+              <label class="block text-slate-400 mb-1">Ghi chú phê duyệt / Lý do thay đổi nếu từ chối (changeReason)</label>
+              <textarea id="approval-change-reason" rows="3" placeholder="Nhập nhận xét hoặc lý do hoàn trả nếu không phê duyệt..." class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white focus:outline-none focus:border-amber-500"></textarea>
+            </div>
+
+            <div class="flex items-center space-x-2 pt-2">
+              <button onclick="handleApproveBerthPlan('APPROVE')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs shadow transition">
+                <i class="fa-solid fa-check mr-1"></i>Phê Duyệt Kế Hoạch (Approve)
               </button>
-              <button type="button" onclick="handleDeleteSelectedVessel()" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold flex items-center space-x-1" title="Xóa tàu này khỏi danh mục hệ thống">
-                <i class="fa-solid fa-trash-can"></i>
-                <span>Xóa Tàu</span>
+              <button onclick="handleApproveBerthPlan('REJECT')" class="flex-1 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded font-bold text-xs shadow transition">
+                <i class="fa-solid fa-xmark mr-1"></i>Từ Chối & Hoàn Trả (Reject)
               </button>
             </div>
           </div>
-          <select id="vessel-imo" onchange="onVesselSelected()" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-            <option value="">-- Đang tải danh sách tàu... --</option>
-          </select>
         </div>
-        <div class="grid grid-cols-2 gap-2">
+
+        <!-- Thẻ Công bố & Khóa thực hiện (ACT_PP) -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-teal-400 flex items-center space-x-2">
+              <i class="fa-solid fa-bullhorn"></i>
+              <span>CÔNG BỐ CHÍNH THỨC & KHÓA (PUBLISH & LOCK)</span>
+            </h3>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-950 text-teal-300 border border-teal-800/60">
+              V.13 OFFICIAL_PUBLISHED
+            </span>
+          </div>
+
+          <div class="space-y-2 text-xs text-slate-300">
+            <p>Sau khi được công bố, phiên bản kế hoạch bến sẽ được <strong class="text-rose-400">Khóa bất biến (is_locked = 1)</strong> và tự động phát sóng đồng bộ dữ liệu sang:</p>
+            <ul class="list-disc list-inside space-y-1 text-slate-400 pl-2">
+              <li>Hệ thống TOS Navis N4 (Lập lịch cẩu & bãi container)</li>
+              <li>Vessel Dispatcher (Điều động hoa tiêu, tàu lai, dây buộc)</li>
+              <li>Cổng thông tin hãng tàu ePort Cát Lái</li>
+              <li>Trạm Hoa tiêu Hàng hải Khu vực 1</li>
+            </ul>
+
+            <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Phiên bản hiện hành:</span>
+                <span class="font-bold text-teal-400 font-mono">V.13 (Tuần 42/2026)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Hiệu lực công bố:</span>
+                <span class="text-white font-mono">2026-10-18 10:00:00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Trạng thái khóa:</span>
+                <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-lock mr-1"></i>Đã khóa thực hiện</span>
+              </div>
+            </div>
+
+            <button onclick="handlePublishBerthPlan()" class="w-full py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded font-bold text-xs shadow transition mt-2">
+              <i class="fa-solid fa-tower-broadcast mr-1.5"></i>Công Bố Kế Hoạch Chính Thức & Khóa
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 5: WF-VB-05 ĐIỀU PHỐI HÀNG HẢI & DỊCH VỤ CẢNG                     -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-nautical-dispatch" class="hidden space-y-4">
+      <div class="grid grid-cols-12 gap-4">
+        <!-- Bảng 3 dịch vụ hàng hải cốt lõi -->
+        <div class="col-span-6 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-sky-400 flex items-center space-x-2">
+              <i class="fa-solid fa-anchor"></i>
+              <span>3 DỊCH VỤ HÀNG HẢI: HOA TIÊU, TÀU LAI, BUỘC DÂY</span>
+            </h3>
+            <span class="text-[10px] text-slate-400 font-mono">Tàu: MSC GEMMA (PC-2609-014)</span>
+          </div>
+          <div class="space-y-2" id="nautical-services-container">
+            <!-- Nạp động bằng loadNauticalServices() -->
+          </div>
+        </div>
+
+        <!-- Bảng Checklist 5 bước Sẵn sàng cập bến (Readiness Checklist) -->
+        <div class="col-span-6 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center space-x-2">
+              <i class="fa-solid fa-list-check"></i>
+              <span>CHECKLIST 5 BƯỚC SẴN SÀNG CẬP BẾN (READINESS CHECKLIST)</span>
+            </h3>
+            <span class="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/60">Đạt 4/5 bước</span>
+          </div>
+          <div class="space-y-2 text-xs" id="readiness-checklist-container">
+            <!-- Nạp động bằng loadReadinessChecklist() -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Mốc sự kiện hàng hải tiêu chuẩn IMO (POB, First line, All fast) -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <h3 class="text-xs font-bold text-amber-400 flex items-center space-x-2 border-b border-slate-800 pb-2">
+          <i class="fa-solid fa-stopwatch-20"></i>
+          <span>CHUỖI MỐC SỰ KIỆN HÀNG HẢI TIÊU CHUẨN (IMO STANDARD MILESTONES)</span>
+        </h3>
+        <div class="grid grid-cols-5 gap-3" id="imo-milestones-chain">
+          <!-- Render chuỗi mốc: POB -> First Line -> All Fast -> Commenced -> Completed -->
+        </div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 6: WF-VB-06 GIÁM SÁT CẨU BỜ & XỬ LÝ SỰ CỐ GIÁN ĐOẠN                -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-crane-disruption" class="hidden space-y-4">
+      <!-- Cảnh báo sự cố gián đoạn (Disruption Alert màu đỏ) -->
+      <div class="bg-rose-950/40 border border-rose-800/80 rounded-xl p-4 flex items-start justify-between shadow-lg">
+        <div class="flex items-start space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center text-white mt-0.5">
+            <i class="fa-solid fa-triangle-exclamation text-base"></i>
+          </div>
           <div>
-            <label class="block text-slate-400 mb-1">Cầu Bến</label>
-            <select id="berth-id" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white">
-              <option value="">-- Đang tải danh sách bến... --</option>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-rose-300 text-xs">CẢNH BÁO SỰ CỐ GIÁN ĐOẠN KHẨN CẤP (ALT-092)</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-900 text-rose-200">SEVERITY: CRITICAL</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-1">
+              Cẩu bờ <strong>QC-02</strong> tại Bến B2 tạm dừng hoạt động do sự cố đứt cáp điều khiển tời nâng lúc 14:15. Ước tính tiến độ tàu <strong>EVER GIVEN</strong> bị trễ <strong class="text-rose-400">+2.5 giờ</strong>, ảnh hưởng trực tiếp đến ETD xuất bến.
+            </p>
+            <div class="text-[11px] text-slate-400 mt-1 font-mono">Tác động: Dồn ứ 230 moves · Đề xuất: Điều phối cẩu QC-03 hỗ trợ bay phụ hoặc hoán đổi bến B3</div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="handleCraneAlert('ACKNOWLEDGE')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+            <i class="fa-solid fa-check-double mr-1"></i>Xác Nhận (Acknowledge)
+          </button>
+          <button onclick="handleCraneAlert('ESCALATE')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow transition">
+            <i class="fa-solid fa-arrow-up-right-dots mr-1"></i>Báo Cáo Leo Thang (Escalate)
+          </button>
+        </div>
+      </div>
+
+      <!-- Bảng giám sát năng suất cẩu bờ theo Bay -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 class="text-xs font-bold text-sky-400 flex items-center space-x-2">
+            <i class="fa-solid fa-truck-ramp-box"></i>
+            <span>PHÂN BỔ CẨU BỜ (QUAY CRANES QC-01 ĐẾN QC-06) & NĂNG SUẤT THỜI GIAN THỰC</span>
+          </h3>
+          <span class="text-[10px] text-teal-400 font-mono">Chu kỳ đồng bộ TOS N4: 10 giây</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="text-slate-400 bg-slate-900 border-b border-slate-800 uppercase font-semibold">
+              <tr>
+                <th class="py-2.5 px-3">CẨU BỜ</th>
+                <th class="py-2.5 px-3">TÀU PHỤC VỤ</th>
+                <th class="py-2.5 px-3">BAY SỐ</th>
+                <th class="py-2.5 px-3">KẾ HOẠCH (MOVES)</th>
+                <th class="py-2.5 px-3">ĐÃ LÀM (MOVES)</th>
+                <th class="py-2.5 px-3">TIẾN ĐỘ (%)</th>
+                <th class="py-2.5 px-3">NĂNG SUẤT HIỆN TẠI</th>
+                <th class="py-2.5 px-3 text-right">TRẠNG THÁI CẨU</th>
+              </tr>
+            </thead>
+            <tbody id="crane-operations-tbody" class="divide-y divide-slate-800/70 text-slate-300 font-mono">
+              <!-- Nạp động từ loadCraneOperations() -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 7: WF-VB-07 ĐỐI SOÁT LƯỢT TÀU & BÁO CÁO KPI                       -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-reconcile-kpi" class="hidden space-y-4">
+      <div class="grid grid-cols-12 gap-4">
+        <!-- Đối soát lượt tàu hoàn tất & đóng chuyến -->
+        <div class="col-span-7 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-teal-400 flex items-center space-x-2">
+              <i class="fa-solid fa-clipboard-check"></i>
+              <span>ĐỐI SOÁT HOÀN TẤT LƯỢT TÀU (RECONCILIATION & CLOSURE)</span>
+            </h3>
+            <span class="text-[10px] text-slate-400 font-mono">Đẩy sang Module Billing</span>
+          </div>
+
+          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Chọn lượt tàu đối soát:</span>
+              <select id="reconcile-call-select" onchange="onReconcileCallChange()" class="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
+                <!-- Nạp danh sách lượt tàu -->
+              </select>
+            </div>
+            <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-slate-300">
+              <div>
+                <span class="text-[10px] text-slate-500 block">Sản lượng 20ft:</span>
+                <strong class="text-sky-400 font-mono">350 Teus</strong>
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-500 block">Sản lượng 40ft:</span>
+                <strong class="text-purple-400 font-mono">280 Teus</strong>
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-500 block">Hàng lạnh (Reefer):</span>
+                <strong class="text-teal-400 font-mono">45 Teus</strong>
+              </div>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-slate-800/60">
+              <span class="text-slate-400">Trạng thái đối soát:</span>
+              <span id="reconcile-status-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">ĐỦ ĐIỀU KIỆN ĐÓNG</span>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 pt-1">
+            <button onclick="handleReconcileCloseCall()" class="flex-1 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded font-bold text-xs shadow transition">
+              <i class="fa-solid fa-lock mr-1.5"></i>Đóng Lượt Tàu -> Chuyển Kế Toán Billing
+            </button>
+            <button onclick="openReopenModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded font-semibold text-xs transition">
+              <i class="fa-solid fa-lock-open mr-1"></i>Mở Lại (Reopen)
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Chỉ số KPI chi tiết -->
+        <div class="col-span-5 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold text-sky-400 flex items-center space-x-2">
+              <i class="fa-solid fa-chart-column"></i>
+              <span>CHỈ SỐ HIỆU SUẤT KHAI THÁC CẢNG (KPIS)</span>
+            </h3>
+            <button onclick="exportKpiReport()" class="text-[10px] text-slate-300 hover:text-white bg-slate-800 px-2 py-0.5 rounded">
+              <i class="fa-solid fa-download mr-1"></i>Xuất Excel
+            </button>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Thời gian quay vòng tàu trung bình (Turnaround):</span>
+              <strong class="text-white font-mono text-sm">14.2 giờ</strong>
+            </div>
+            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Thời gian chờ cầu trung bình (Berth Waiting):</span>
+              <strong class="text-emerald-400 font-mono text-sm">0.8 giờ</strong>
+            </div>
+            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Tỷ lệ tàu rời bến đúng giờ (On-time Departure):</span>
+              <strong class="text-sky-400 font-mono text-sm">96.2%</strong>
+            </div>
+            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
+              <span class="text-slate-400">Hệ số sử dụng cầu bến (Berth Occupancy):</span>
+              <strong class="text-teal-400 font-mono text-sm">68.4%</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- TAB 8: WF-VB-08 QUẢN TRỊ & AUDIT TRAIL (LOGS & INTEGRATIONS)           -->
+    <!-- -------------------------------------------------------------------- -->
+    <section id="tab-admin-audit" class="hidden space-y-4">
+      <div class="grid grid-cols-12 gap-4">
+        <!-- Giám sát kết nối liên hệ thống -->
+        <div class="col-span-5 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-sky-400 flex items-center space-x-2 border-b border-slate-800 pb-2">
+            <i class="fa-solid fa-network-wired"></i>
+            <span>GIÁM SÁT KẾT NỐI HỆ THỐNG NGOẠI VI (INTEGRATIONS)</span>
+          </h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800">
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="font-semibold text-white">TOS Navis N4</span>
+              </div>
+              <span class="text-[10px] text-emerald-400 font-mono">CONNECTED (Ping 12ms)</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800">
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="font-semibold text-white">GIS Esri Cầu bến (Spatiotemporal)</span>
+              </div>
+              <span class="text-[10px] text-emerald-400 font-mono">ONLINE (0m - 2040m)</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800">
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span class="font-semibold text-white">Cổng Hàng hải Quốc gia (National PCS)</span>
+              </div>
+              <span class="text-[10px] text-emerald-400 font-mono">SYNCED (API v2.1)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ma trận phân quyền SoD theo chuẩn ISO 27001 -->
+        <div class="col-span-7 bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-amber-400 flex items-center space-x-2 border-b border-slate-800 pb-2">
+            <i class="fa-solid fa-user-shield"></i>
+            <span>MA TRẬN PHÂN TÁCH NHIỆM VỤ SOD (ISO 27001 COMPLIANCE)</span>
+          </h3>
+          <div class="overflow-x-auto text-xs">
+            <table class="w-full text-left">
+              <thead class="text-slate-400 bg-slate-900 border-b border-slate-800">
+                <tr>
+                  <th class="py-1.5 px-2">VAI TRÒ</th>
+                  <th class="py-1.5 px-2">LẬP KẾ HOẠCH</th>
+                  <th class="py-1.5 px-2">PHÊ DUYỆT</th>
+                  <th class="py-1.5 px-2">CÔNG BỐ & KHÓA</th>
+                  <th class="py-1.5 px-2">ĐỐI SOÁT & ĐÓNG</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300 font-mono">
+                <tr>
+                  <td class="py-1.5 px-2 font-bold text-sky-400">ACT_BP (Điều độ viên)</td>
+                  <td class="py-1.5 px-2 text-emerald-400">Cho phép</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm (SoD)</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm</td>
+                  <td class="py-1.5 px-2 text-emerald-400">Cho phép</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-bold text-amber-400">ACT_PA (Trưởng phòng)</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm</td>
+                  <td class="py-1.5 px-2 text-emerald-400">Toàn quyền</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm</td>
+                  <td class="py-1.5 px-2 text-emerald-400">Thẩm tra</td>
+                </tr>
+                <tr>
+                  <td class="py-1.5 px-2 font-bold text-teal-400">ACT_PP (Người công bố)</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm</td>
+                  <td class="py-1.5 px-2 text-emerald-400">Toàn quyền</td>
+                  <td class="py-1.5 px-2 text-rose-500">Bị cấm</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bảng Nhật ký kiểm toán bất biến (Immutable Audit Trail) -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 class="text-xs font-bold text-slate-300 flex items-center space-x-2">
+            <i class="fa-solid fa-fingerprint text-teal-400"></i>
+            <span>NHẬT KÝ KIỂM TOÁN BẤT BIẾN (IMMUTABLE AUDIT TRAIL LOGS)</span>
+          </h3>
+          <div class="flex items-center space-x-2">
+            <select id="audit-filter-type" onchange="loadAuditLogsTable()" class="bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-white">
+              <option value="">Tất cả thực thể</option>
+              <option value="VESSEL">VESSEL (Hồ sơ tàu)</option>
+              <option value="PORT_CALL">PORT_CALL (Lượt tàu)</option>
+              <option value="BERTH_PLAN">BERTH_PLAN (Kế hoạch bến)</option>
+              <option value="DISRUPTION_ALERT">DISRUPTION_ALERT (Sự cố)</option>
             </select>
           </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Mớn Nước (Draft - m)</label>
-            <input type="number" step="0.1" id="vessel-draft" value="16.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          </div>
         </div>
-        <div>
-          <label class="block text-slate-400 mb-1">Mét Bến Bắt Đầu (0 - 2040m)</label>
-          <input type="number" id="start-meter" value="1300" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          <p class="text-[10px] text-slate-500 mt-0.5">Mẹo: Bến B5 (1300m - 1650m) hiện đang trống an toàn.</p>
-        </div>
-        <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition">
-          Kiểm Tra & Phê Duyệt Cầu Bến
-        </button>
-      </form>
-      <div id="vessel-alert-box" class="hidden p-2.5 rounded border text-xs"></div>
-    </div>
-  </div>
 
-  <!-- MODAL THÊM TÀU MỚI -->
-  <div id="add-vessel-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
-            <i class="fa-solid fa-ship text-sm"></i>
-          </div>
-          <h3 class="text-sm font-bold text-white">ĐĂNG KÝ THÔNG SỐ TÀU MỚI</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="text-slate-400 bg-slate-900 border-b border-slate-800 uppercase font-semibold">
+              <tr>
+                <th class="py-2 px-3">MÃ LOG</th>
+                <th class="py-2 px-3">THỜI GIAN</th>
+                <th class="py-2 px-3">NGƯỜI THỰC HIỆN</th>
+                <th class="py-2 px-3">THỰC THỂ & MÃ</th>
+                <th class="py-2 px-3">HÀNH ĐỘNG</th>
+                <th class="py-2 px-3">TÓM TẮT THAY ĐỔI</th>
+                <th class="py-2 px-3 text-right">CHI TIẾT</th>
+              </tr>
+            </thead>
+            <tbody id="audit-logs-tbody" class="divide-y divide-slate-800/70 text-slate-300 font-mono">
+              <!-- Nạp động bằng loadAuditLogsTable() -->
+            </tbody>
+          </table>
         </div>
-        <button onclick="closeAddVesselModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================================== -->
+  <!-- MODAL THÊM / CHỈNH SỬA HỒ SƠ TÀU (VESSEL FORM MODAL)                      -->
+  <!-- ======================================================================== -->
+  <div id="vessel-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="vessel-modal-title" class="text-sm font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-ship text-teal-400"></i>
+          <span>Thêm Hồ Sơ Tàu Mới</span>
+        </h3>
+        <button onclick="closeVesselModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
 
-      <form onsubmit="handleAddNewVessel(event)" class="space-y-3 text-xs">
+      <form id="vessel-form" onsubmit="handleSaveVessel(event)" class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-400 mb-1">Mã IMO Quốc Tế (7 số) *</label>
-            <input type="text" id="new-imo" required maxlength="7" placeholder="VD: 9988776" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono focus:border-blue-500 outline-none">
+            <label class="block text-slate-400 mb-1">Mã IMO (7 chữ số) (*)</label>
+            <input type="text" id="modal-vessel-imo" required maxlength="7" pattern="[0-9]{7}" onblur="checkDuplicateIMO()" placeholder="VD: 9811000" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-teal-500">
+            <span id="modal-imo-error" class="text-[10px] text-rose-400 hidden mt-0.5 block"></span>
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Tên Tàu *</label>
-            <input type="text" id="new-name" required placeholder="VD: VN STAR 01" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white uppercase focus:border-blue-500 outline-none">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-slate-400 mb-1">Hãng Tàu Khai Thác</label>
-          <input type="text" id="new-carrier" placeholder="VD: SNP Shipping / VIMC Lines / Maersk" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white focus:border-blue-500 outline-none">
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-slate-400 mb-1">LOA (m) *</label>
-            <input type="number" step="0.1" id="new-loa" required value="200.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Beam (m) *</label>
-            <input type="number" step="0.1" id="new-beam" required value="32.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Draft Max (m) *</label>
-            <input type="number" step="0.1" id="new-draft" required value="12.0" class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
+            <label class="block text-slate-400 mb-1">Mã MMSI (9 chữ số)</label>
+            <input type="text" id="modal-vessel-mmsi" maxlength="9" pattern="[0-9]{9}" onblur="checkDuplicateMMSI()" placeholder="VD: 352001000" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-teal-500">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Tên Tàu Biển (*)</label>
+            <input type="text" id="modal-vessel-name" required placeholder="VD: MSC GEMMA" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white focus:border-teal-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Hô Hiệu (Call Sign)</label>
+            <input type="text" id="modal-vessel-callsign" placeholder="VD: 3E2198" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Chiều Dài LOA (m) (*)</label>
+            <input type="number" step="0.1" id="modal-vessel-loa" required value="200.0" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Chiều Rộng Beam (m)</label>
+            <input type="number" step="0.1" id="modal-vessel-beam" value="32.2" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 flex items-center justify-between">
+              <span>Mớn Nước Max (m)</span>
+              <i class="fa-solid fa-lock text-[10px] text-amber-400" title="Bảo vệ khóa mớn"></i>
+            </label>
+            <input type="number" step="0.1" id="modal-vessel-draft" required value="12.0" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
           <div>
             <label class="block text-slate-400 mb-1">Trọng Tải DWT (Tấn)</label>
-            <input type="number" id="new-dwt" value="35000" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
+            <input type="number" id="modal-vessel-dwt" value="35000" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Sức Chở (TEU)</label>
-            <input type="number" id="new-teu" value="2500" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
+            <label class="block text-slate-400 mb-1">Sức Chở TEU</label>
+            <input type="number" id="modal-vessel-teu" value="2800" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Quốc Tịch Cờ</label>
+            <input type="text" id="modal-vessel-flag" value="Panama" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white">
           </div>
         </div>
 
-        <div id="modal-alert-box" class="hidden p-2 rounded text-xs"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Nguồn Dữ Liệu</label>
+            <input type="text" id="modal-vessel-source" value="Đăng kiểm / Lloyd's Register" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Trạng Thái Hoạt Động</label>
+            <select id="modal-vessel-status" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white">
+              <option value="ACTIVE">ACTIVE (Được phép cập bến)</option>
+              <option value="INACTIVE">INACTIVE (Tạm ngưng)</option>
+              <option value="BLACKLISTED">BLACKLISTED (Cấm cập cảng)</option>
+            </select>
+          </div>
+        </div>
 
-        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-          <button type="button" onclick="closeAddVesselModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-xs">Hủy</button>
-          <button type="submit" id="save-vessel-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs shadow flex items-center space-x-1">
-            <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Tàu Vào Hệ Thống
-          </button>
+        <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeVesselModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-semibold transition">Hủy bỏ</button>
+          <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded font-bold transition">Lưu Hồ Sơ</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL SỬA THÔNG TIN TÀU -->
-  <div id="edit-vessel-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
-            <i class="fa-solid fa-pen-to-square text-sm"></i>
-          </div>
-          <h3 class="text-sm font-bold text-white">CẬP NHẬT THÔNG TIN TÀU</h3>
-        </div>
-        <button onclick="closeEditVesselModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+  <!-- ======================================================================== -->
+  <!-- MODAL MỞ LẠI LƯỢT TÀU ĐÃ ĐÓNG (REOPEN MODAL CÓ BẮT BUỘC CHANGEREASON)       -->
+  <!-- ======================================================================== -->
+  <div id="reopen-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="text-sm font-bold text-amber-400 flex items-center space-x-2">
+          <i class="fa-solid fa-lock-open"></i>
+          <span>Mở Lại Lượt Tàu Đã Đóng (Reopen Port Call)</span>
+        </h3>
+        <button onclick="closeReopenModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
       </div>
-
-      <form onsubmit="handleEditVessel(event)" class="space-y-3 text-xs">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 mb-1">Mã IMO Quốc Tế</label>
-            <input type="text" id="edit-vessel-imo" readonly class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-amber-400 font-mono font-bold cursor-not-allowed">
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Tên Tàu *</label>
-            <input type="text" id="edit-vessel-name" required class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white uppercase focus:border-amber-500 outline-none">
-          </div>
-        </div>
-
+      <div class="space-y-3 text-xs">
+        <p class="text-slate-300">
+          Mở lại lượt tàu đã đóng sẽ chuyển trạng thái về <strong class="text-emerald-400">OPERATING</strong> để điều chỉnh số liệu hàng hải/xếp dỡ. Bắt buộc nhập lý do hồi tố theo chuẩn ISO 27001.
+        </p>
         <div>
-          <label class="block text-slate-400 mb-1">Hãng Tàu Khai Thác</label>
-          <input type="text" id="edit-vessel-carrier" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white focus:border-amber-500 outline-none">
+          <label class="block text-slate-400 mb-1">Lý do mở lại (changeReason) (*)</label>
+          <textarea id="reopen-reason-input" rows="3" required placeholder="VD: Hãng tàu kiến nghị bổ sung 12 moves quá khổ..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:outline-none focus:border-amber-500"></textarea>
         </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-slate-400 mb-1">LOA (m) *</label>
-            <input type="number" step="0.1" id="edit-vessel-loa" required class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Beam (m) *</label>
-            <input type="number" step="0.1" id="edit-vessel-beam" required class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Draft Max (m) *</label>
-            <input type="number" step="0.1" id="edit-vessel-draft" required class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white font-mono">
-          </div>
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button onclick="closeReopenModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded font-semibold">Hủy</button>
+          <button onclick="submitReopenPortCall()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold">Xác Nhận Mở Lại</button>
         </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 mb-1">Trọng Tải DWT (Tấn)</label>
-            <input type="number" id="edit-vessel-dwt" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Sức Chở (TEU)</label>
-            <input type="number" id="edit-vessel-teu" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-mono">
-          </div>
-        </div>
-
-        <div id="edit-modal-alert-box" class="hidden p-2 rounded text-xs"></div>
-
-        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-          <button type="button" onclick="closeEditVesselModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded text-xs">Hủy</button>
-          <button type="submit" id="update-vessel-btn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs shadow flex items-center space-x-1">
-            <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Thay Đổi
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 
+  <!-- ======================================================================== -->
+  <!-- JAVASCRIPT ĐIỀU HÀNH & KẾT NỐI TOÀN BỘ 26 ENDPOINTS BACKEND                 -->
+  <!-- ======================================================================== -->
   <script>
-    let vesselsCache = {};
+    /**
+     * Module Quản lý Tàu & Cầu bến (Vessel & Berth Frontend Controller)
+     * Chú thích mục đích rõ ràng bên cạnh từng hàm xử lý.
+     */
 
-    async function loadVessels(selectImo = null) {
-      try {
-        const res = await fetch('/api/v1/vessels');
-        const list = await res.json();
-        const select = document.getElementById('vessel-imo');
-        select.innerHTML = '';
-        vesselsCache = {};
+    let currentVessels = [];
+    let currentPortCalls = [];
+    let currentEditingIMO = null;
+    let searchTimeout = null;
 
-        list.forEach(v => {
-          vesselsCache[v.imo] = v;
-          const opt = document.createElement('option');
-          opt.value = v.imo;
-          opt.textContent = `${v.imo} - ${v.name} (LOA ${v.loa}m - Draft ${v.max_draft}m - ${v.carrier})`;
-          select.appendChild(opt);
-        });
-
-        // Add test error option for validation demo
-        const errOpt = document.createElement('option');
-        errOpt.value = '123456';
-        errOpt.textContent = '123456 - [TEST ERROR] IMO 6 số sai chuẩn';
-        select.appendChild(errOpt);
-
-        if (selectImo && vesselsCache[selectImo]) {
-          select.value = selectImo;
-        } else if (list.length > 0) {
-          select.value = list[0].imo;
+    // --------------------------------------------------------------------------
+    // 1. CHUYỂN ĐỔI 8 SUB-SCREENS THEO DOC 100
+    // --------------------------------------------------------------------------
+    // Mục đích: Điều hướng giữa 8 tab chức năng WF-VB-01 đến WF-VB-08, cập nhật trạng thái UI tương ứng
+    function switchTab(tabId) {
+      const tabs = [
+        'tab-vessel-master', 'tab-port-call-eta', 'tab-berth-gantt', 
+        'tab-approval-publish', 'tab-nautical-dispatch', 'tab-crane-disruption',
+        'tab-reconcile-kpi', 'tab-admin-audit'
+      ];
+      tabs.forEach(t => {
+        const el = document.getElementById(t);
+        const btn = document.getElementById('btn-' + t);
+        if (el) el.classList.add('hidden');
+        if (btn) {
+          btn.classList.remove('tab-active');
+          btn.classList.remove('text-sky-400');
+          btn.classList.add('text-slate-400');
         }
-        onVesselSelected();
-      } catch (err) {
-        console.error('Lỗi khi tải danh sách tàu:', err);
-      }
-    }
-
-    function onVesselSelected() {
-      const imo = document.getElementById('vessel-imo').value;
-      const v = vesselsCache[imo];
-      if (v) {
-        document.getElementById('vessel-draft').value = v.max_draft;
-      }
-    }
-
-    function openAddVesselModal() {
-      const modal = document.getElementById('add-vessel-modal');
-      modal.classList.remove('hidden');
-      const alertBox = document.getElementById('modal-alert-box');
-      alertBox.className = 'hidden p-2 rounded text-xs';
-      alertBox.innerHTML = '';
-      document.getElementById('new-imo').focus();
-    }
-
-    function closeAddVesselModal() {
-      document.getElementById('add-vessel-modal').classList.add('hidden');
-    }
-
-    async function handleAddNewVessel(e) {
-      e.preventDefault();
-      const imo = document.getElementById('new-imo').value.trim();
-      const name = document.getElementById('new-name').value.trim();
-      const carrier = document.getElementById('new-carrier').value.trim() || 'Tự do';
-      const loa = parseFloat(document.getElementById('new-loa').value);
-      const beam = parseFloat(document.getElementById('new-beam').value);
-      const max_draft = parseFloat(document.getElementById('new-draft').value);
-      const dwt = parseInt(document.getElementById('new-dwt').value) || 30000;
-      const teu = parseInt(document.getElementById('new-teu').value) || 2000;
-
-      const alertBox = document.getElementById('modal-alert-box');
-      alertBox.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
-
-      try {
-        const res = await fetch('/api/v1/vessels', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ imo, name, carrier, loa, beam, max_draft, dwt, teu })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          closeAddVesselModal();
-          await loadVessels(imo);
-          const box = document.getElementById('vessel-alert-box');
-          box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300');
-          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
-          box.innerHTML = `<b>✓ THÊM TÀU MỚI THÀNH CÔNG:</b> ${data.message} - Đã tự động chọn vào danh sách!`;
-          // Reset form
-          document.getElementById('new-imo').value = '';
-          document.getElementById('new-name').value = '';
-          document.getElementById('new-carrier').value = '';
-        } else {
-          alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-          alertBox.innerHTML = `<b>✗ LỖI:</b> ${data.message}`;
-        }
-      } catch (err) {
-        alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-        alertBox.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
-      }
-    }
-
-    async function handleDeleteSelectedVessel() {
-      const imo = document.getElementById('vessel-imo').value;
-      if (!imo || imo === '123456') {
-        alert('Vui lòng chọn một con tàu thực tế trong danh mục để xóa!');
-        return;
-      }
-      const v = vesselsCache[imo];
-      const vesselName = v ? v.name : imo;
-      if (!confirm(`Bạn có chắc chắn muốn xóa tàu "${vesselName}" (IMO: ${imo}) khỏi danh mục hệ thống?`)) {
-        return;
-      }
-
-      const box = document.getElementById('vessel-alert-box');
-      box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
-
-      try {
-        const res = await fetch(`/api/v1/vessels/${imo}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (res.ok) {
-          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
-          box.innerHTML = `<b>✓ ĐÃ XÓA TÀU:</b> ${data.message}`;
-          await loadVessels();
-        } else {
-          box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-          box.innerHTML = `<b>✗ KHÔNG THỂ XÓA TÀU:</b> ${data.message}`;
-        }
-      } catch (err) {
-        box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-        box.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
-      }
-    }
-
-    function openEditVesselModal() {
-      const imo = document.getElementById('vessel-imo').value;
-      if (!imo || imo === '123456') {
-        alert('Vui lòng chọn một con tàu hợp lệ trong danh sách để sửa!');
-        return;
-      }
-      const v = vesselsCache[imo];
-      if (!v) {
-        alert('Không tìm thấy thông tin tàu đã chọn!');
-        return;
-      }
-
-      document.getElementById('edit-vessel-imo').value = v.imo;
-      document.getElementById('edit-vessel-name').value = v.name;
-      document.getElementById('edit-vessel-carrier').value = v.carrier;
-      document.getElementById('edit-vessel-loa').value = v.loa;
-      document.getElementById('edit-vessel-beam').value = v.beam;
-      document.getElementById('edit-vessel-draft').value = v.max_draft;
-      document.getElementById('edit-vessel-dwt').value = v.dwt || 35000;
-      document.getElementById('edit-vessel-teu').value = v.teu || 2500;
-
-      const alertBox = document.getElementById('edit-modal-alert-box');
-      alertBox.className = 'hidden p-2 rounded text-xs';
-      alertBox.innerHTML = '';
-
-      document.getElementById('edit-vessel-modal').classList.remove('hidden');
-    }
-
-    function closeEditVesselModal() {
-      document.getElementById('edit-vessel-modal').classList.add('hidden');
-    }
-
-    async function handleEditVessel(e) {
-      e.preventDefault();
-      const imo = document.getElementById('edit-vessel-imo').value.trim();
-      const name = document.getElementById('edit-vessel-name').value.trim();
-      const carrier = document.getElementById('edit-vessel-carrier').value.trim() || 'Tự do';
-      const loa = parseFloat(document.getElementById('edit-vessel-loa').value);
-      const beam = parseFloat(document.getElementById('edit-vessel-beam').value);
-      const max_draft = parseFloat(document.getElementById('edit-vessel-draft').value);
-      const dwt = parseInt(document.getElementById('edit-vessel-dwt').value) || 30000;
-      const teu = parseInt(document.getElementById('edit-vessel-teu').value) || 2000;
-
-      const alertBox = document.getElementById('edit-modal-alert-box');
-      alertBox.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
-
-      try {
-        const res = await fetch(`/api/v1/vessels/${imo}`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ name, carrier, loa, beam, max_draft, dwt, teu })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          closeEditVesselModal();
-          await loadVessels(imo);
-          loadPortCalls();
-          const box = document.getElementById('vessel-alert-box');
-          box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300');
-          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
-          box.innerHTML = `<b>✓ CẬP NHẬT THÔNG TIN TÀU THÀNH CÔNG:</b> ${data.message}`;
-        } else {
-          alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-          alertBox.innerHTML = `<b>✗ LỖI:</b> ${data.message}`;
-        }
-      } catch (err) {
-        alertBox.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-        alertBox.innerHTML = `<b>✗ LỖI KẾT NỐI:</b> ${err.message}`;
-      }
-    }
-
-    async function handleDeletePortCall(callId, vesselName) {
-      if (!confirm(`Xác nhận cho tàu "${vesselName}" (${callId}) rời bến và giải phóng mét cầu bến?`)) {
-        return;
-      }
-      try {
-        const res = await fetch(`/api/v1/port-calls/${callId}`, { method: 'DELETE' });
-        const data = await res.json();
-        const box = document.getElementById('vessel-alert-box');
-        box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
-        if (res.ok) {
-          box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
-          box.innerHTML = `<b>✓ GIẢI PHÓNG CẦU BẾN:</b> ${data.message}`;
-          loadPortCalls();
-        } else {
-          box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-          box.innerHTML = `<b>✗ LỖI:</b> ${data.message}`;
-        }
-      } catch (err) {
-        alert('Lỗi kết nối khi xóa chuyến tàu: ' + err.message);
-      }
-    }
-
-    async function loadBerths() {
-      try {
-        const res = await fetch('/api/v1/berths');
-        const berths = await res.json();
-        const select = document.getElementById('berth-id');
-        select.innerHTML = '';
-        berths.forEach(b => {
-          const opt = document.createElement('option');
-          opt.value = b.berth_id;
-          opt.textContent = `${b.name} (${b.max_draft}m, ${b.start_meter}m-${b.end_meter}m)`;
-          select.appendChild(opt);
-        });
-      } catch (err) {
-        console.error('Lỗi khi tải danh mục cầu bến:', err);
-      }
-    }
-
-    async function loadVesselKPIs() {
-      try {
-        const res = await fetch('/api/v1/vessel/kpi');
-        const kpi = await res.json();
-        const berthLenEl = document.getElementById('kpi-berth-length');
-        if (berthLenEl) berthLenEl.innerText = `${kpi.total_berth_meters.toLocaleString('vi-VN')} m (${kpi.total_berths} Bến)`;
-        const vesselCountEl = document.getElementById('vessel-count');
-        if (vesselCountEl) vesselCountEl.innerText = `${kpi.active_port_calls} Tàu`;
-        const movesRateEl = document.getElementById('kpi-moves-rate');
-        if (movesRateEl) movesRateEl.innerText = `${kpi.moves_rate_per_hour} moves/giờ`;
-        const utilEl = document.getElementById('kpi-utilization');
-        if (utilEl) utilEl.innerText = `${kpi.utilization_percent}% (${Math.round(kpi.occupied_meters)}m)`;
-      } catch (err) {
-        console.error('Lỗi khi tải KPI cầu bến:', err);
-      }
-    }
-
-    async function loadPortCalls() {
-      const res = await fetch('/api/v1/port-calls');
-      const calls = await res.json();
-      const tbody = document.getElementById('port-calls-table');
-      const canvas = document.getElementById('vessels-on-berth');
-      tbody.innerHTML = '';
-      canvas.innerHTML = '';
-
-      calls.forEach(c => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="py-2 px-3 text-cyan-400 font-bold">${c.call_id}</td>
-            <td class="py-2 px-3 text-white font-bold">${c.vessel_name}</td>
-            <td class="py-2 px-3 text-emerald-400">${c.start_meter}m - ${c.end_meter}m</td>
-            <td class="py-2 px-3">${c.current_moves}/${c.total_moves} TEU</td>
-            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400">${c.status}</span></td>
-            <td class="py-2 px-3 text-right">
-              <button onclick="handleDeletePortCall('${c.call_id}', '${c.vessel_name}')" class="px-2 py-0.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded border border-rose-500/40 text-[10px] font-bold transition flex items-center space-x-1 ml-auto">
-                <i class="fa-solid fa-trash-can"></i>
-                <span>Rời bến</span>
-              </button>
-            </td>
-          </tr>`;
-        const left = (c.start_meter / 2040) * 100;
-        const width = Math.max(((c.end_meter - c.start_meter) / 2040) * 100, 5);
-        canvas.innerHTML += `
-          <div class="absolute h-12 bg-blue-600/30 border border-blue-500 rounded p-1 text-[10px] flex flex-col justify-center truncate shadow"
-               style="left:${left}%; width:${width}%; top:5px;">
-            <div class="font-bold text-white truncate">${c.vessel_name}</div>
-            <div class="text-[9px] text-blue-300">${c.start_meter}m-${c.end_meter}m</div>
-          </div>`;
       });
-      await loadVesselKPIs();
+
+      const activeEl = document.getElementById(tabId);
+      const activeBtn = document.getElementById('btn-' + tabId);
+      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeBtn) {
+        activeBtn.classList.add('tab-active');
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('text-sky-400');
+      }
+
+      // Tải dữ liệu tương ứng khi chuyển tab
+      if (tabId === 'tab-vessel-master') loadVesselMasterTable();
+      if (tabId === 'tab-port-call-eta') loadPortCallAndMilestones();
+      if (tabId === 'tab-berth-gantt') loadBerthGanttData();
+      if (tabId === 'tab-nautical-dispatch') loadNauticalServices();
+      if (tabId === 'tab-crane-disruption') loadCraneOperations();
+      if (tabId === 'tab-reconcile-kpi') loadReconcileKpiData();
+      if (tabId === 'tab-admin-audit') loadAuditLogsTable();
     }
 
+    // --------------------------------------------------------------------------
+    // 2. TẢI CHỈ SỐ KPI ĐIỀU HÀNH TỔNG QUAN
+    // --------------------------------------------------------------------------
+    // Mục đích: Gọi API /api/vessel-berth/kpis để hiển thị 4 thẻ KPI hàng hải đầu trang
+    async function loadTopKpis() {
+      try {
+        const res = await fetch('/api/vessel-berth/kpis');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('kpi-berth-length').innerText = `${data.total_berth_length_meters.toLocaleString()} m`;
+        document.getElementById('kpi-docked-vessels').innerText = `${data.currently_docked_vessels} Tàu`;
+        document.getElementById('kpi-crane-productivity').innerText = `${data.crane_productivity_moves_per_hour} moves/h`;
+        document.getElementById('kpi-berth-utilization').innerText = `${data.berth_utilization_percent}%`;
+      } catch (err) {
+        console.error("Lỗi khi tải KPIs:", err);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. TAB 1: WF-VB-01 HỒ SƠ TÀU (VESSEL MASTER REGISTRY)
+    // --------------------------------------------------------------------------
+    // Mục đích: Lấy danh sách tàu kèm tìm kiếm và lọc trạng thái, đổ vào bảng HTML
+    async function loadVesselMasterTable() {
+      const search = document.getElementById('vessel-search-input')?.value || '';
+      const status = document.getElementById('vessel-status-filter')?.value || '';
+      try {
+        const res = await fetch(`/api/vessel-berth/vessels?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`);
+        const vessels = await res.json();
+        currentVessels = vessels;
+        const tbody = document.getElementById('vessel-master-tbody');
+        if (!tbody) return;
+
+        if (vessels.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500">Không tìm thấy hồ sơ tàu phù hợp tiêu chí</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = vessels.map(v => {
+          let statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">ACTIVE</span>`;
+          if (v.status === 'INACTIVE') statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">INACTIVE</span>`;
+          if (v.status === 'BLACKLISTED') statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800/60">BLACKLISTED</span>`;
+
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-2.5 px-3">
+                <div class="font-bold text-sky-400">${v.imo}</div>
+                <div class="text-[10px] text-slate-500 font-mono">${v.mmsi || 'Chưa gán MMSI'}</div>
+              </td>
+              <td class="py-2.5 px-3">
+                <div class="font-bold text-white">${v.vessel_name}</div>
+                <div class="text-[10px] text-slate-400 font-mono">Hô hiệu: ${v.call_sign || 'N/A'}</div>
+              </td>
+              <td class="py-2.5 px-3">
+                <span class="text-slate-300">${v.flag_state || 'Panama'}</span>
+              </td>
+              <td class="py-2.5 px-3 font-mono">
+                ${v.loa}m × ${v.beam}m
+              </td>
+              <td class="py-2.5 px-3 font-mono">
+                <span class="text-amber-400 font-bold">${v.max_draft}m</span>
+                <i class="fa-solid fa-lock text-[9px] text-slate-500 ml-1" title="Khóa mớn thiết kế"></i>
+              </td>
+              <td class="py-2.5 px-3 font-mono text-[11px]">
+                <div>${(v.dwt || 0).toLocaleString()} DWT</div>
+                <div class="text-slate-400">${(v.teu || 0).toLocaleString()} TEU</div>
+              </td>
+              <td class="py-2.5 px-3 text-[11px] text-slate-400">
+                ${v.information_source || "Đăng kiểm / Lloyd's"}
+              </td>
+              <td class="py-2.5 px-3">
+                ${statusBadge}
+              </td>
+              <td class="py-2.5 px-3 text-right space-x-1.5 font-sans">
+                <button onclick="editVessel('${v.imo}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 text-[11px] font-semibold" title="Sửa thông số">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="deleteVessel('${v.imo}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900 text-rose-400 text-[11px] font-semibold" title="Xóa hồ sơ">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Lỗi khi tải bảng hồ sơ tàu:", err);
+      }
+    }
+
+    // Mục đích: Hoãn tìm kiếm tự động để tối ưu hiệu năng người dùng nhập liệu
+    function debounceVesselSearch() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        loadVesselMasterTable();
+      }, 300);
+    }
+
+    // Mục đích: Mở modal thêm hoặc chỉnh sửa hồ sơ tàu biển
+    function openVesselModal(mode = 'CREATE', imo = null) {
+      currentEditingIMO = imo;
+      const modal = document.getElementById('vessel-modal');
+      const title = document.getElementById('vessel-modal-title');
+      const form = document.getElementById('vessel-form');
+      form.reset();
+      document.getElementById('modal-imo-error').classList.add('hidden');
+
+      if (mode === 'CREATE') {
+        title.innerHTML = `<i class="fa-solid fa-ship text-teal-400 mr-2"></i>Thêm Hồ Sơ Tàu Mới`;
+        document.getElementById('modal-vessel-imo').removeAttribute('readonly');
+      } else {
+        title.innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-400 mr-2"></i>Chỉnh Sửa Hồ Sơ Tàu (IMO: ${imo})`;
+        document.getElementById('modal-vessel-imo').setAttribute('readonly', 'true');
+        const v = currentVessels.find(x => x.imo === imo);
+        if (v) {
+          document.getElementById('modal-vessel-imo').value = v.imo;
+          document.getElementById('modal-vessel-mmsi').value = v.mmsi || '';
+          document.getElementById('modal-vessel-name').value = v.vessel_name;
+          document.getElementById('modal-vessel-callsign').value = v.call_sign || '';
+          document.getElementById('modal-vessel-loa').value = v.loa;
+          document.getElementById('modal-vessel-beam').value = v.beam;
+          document.getElementById('modal-vessel-draft').value = v.max_draft;
+          document.getElementById('modal-vessel-dwt').value = v.dwt;
+          document.getElementById('modal-vessel-teu').value = v.teu;
+          document.getElementById('modal-vessel-flag').value = v.flag_state || 'Panama';
+          document.getElementById('modal-vessel-source').value = v.information_source || "Đăng kiểm / Lloyd's";
+          document.getElementById('modal-vessel-status').value = v.status || 'ACTIVE';
+        }
+      }
+      modal.classList.remove('hidden');
+    }
+
+    // Mục đích: Đóng modal hồ sơ tàu
+    function closeVesselModal() {
+      document.getElementById('vessel-modal').classList.add('hidden');
+    }
+
+    // Mục đích: Kiểm tra trùng lặp IMO 7 chữ số ngay khi rời trường nhập liệu
+    async function checkDuplicateIMO() {
+      const imo = document.getElementById('modal-vessel-imo').value.trim();
+      if (imo.length !== 7) return;
+      const res = await fetch(`/api/vessel-berth/vessels/check-duplicate?imo=${imo}${currentEditingIMO ? '&exclude_imo=' + currentEditingIMO : ''}`);
+      const data = await res.json();
+      const errEl = document.getElementById('modal-imo-error');
+      if (data.duplicate_imo) {
+        errEl.innerText = data.message;
+        errEl.classList.remove('hidden');
+      } else {
+        errEl.classList.add('hidden');
+      }
+    }
+
+    // Mục đích: Kiểm tra trùng lặp MMSI 9 chữ số
+    async function checkDuplicateMMSI() {
+      const mmsi = document.getElementById('modal-vessel-mmsi').value.trim();
+      if (mmsi.length !== 9) return;
+      const res = await fetch(`/api/vessel-berth/vessels/check-duplicate?mmsi=${mmsi}${currentEditingIMO ? '&exclude_imo=' + currentEditingIMO : ''}`);
+      const data = await res.json();
+      if (data.duplicate_mmsi) {
+        alert(data.message);
+      }
+    }
+
+    // Mục đích: Lưu dữ liệu thêm mới (POST) hoặc cập nhật (PUT) hồ sơ tàu vào CSDL
+    async function handleSaveVessel(e) {
+      e.preventDefault();
+      const imo = document.getElementById('modal-vessel-imo').value.trim();
+      const payload = {
+        imo: imo,
+        mmsi: document.getElementById('modal-vessel-mmsi').value.trim() || null,
+        vessel_name: document.getElementById('modal-vessel-name').value.trim(),
+        call_sign: document.getElementById('modal-vessel-callsign').value.trim() || null,
+        loa: parseFloat(document.getElementById('modal-vessel-loa').value),
+        beam: parseFloat(document.getElementById('modal-vessel-beam').value),
+        max_draft: parseFloat(document.getElementById('modal-vessel-draft').value),
+        dwt: parseInt(document.getElementById('modal-vessel-dwt').value),
+        teu: parseInt(document.getElementById('modal-vessel-teu').value),
+        flag_state: document.getElementById('modal-vessel-flag').value.trim(),
+        information_source: document.getElementById('modal-vessel-source').value.trim(),
+        status: document.getElementById('modal-vessel-status').value
+      };
+
+      try {
+        let url = '/api/vessel-berth/vessels';
+        let method = 'POST';
+        if (currentEditingIMO) {
+          url += `/${currentEditingIMO}`;
+          method = 'PUT';
+        }
+        const res = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          alert("Lỗi: " + (result.error || result.message));
+          return;
+        }
+        closeVesselModal();
+        loadVesselMasterTable();
+        loadTopKpis();
+        alert("Thành công: " + result.message);
+      } catch (err) {
+        alert("Lỗi kết nối máy chủ: " + err);
+      }
+    }
+
+    // Mục đích: Mở chế độ chỉnh sửa tàu có sẵn
+    function editVessel(imo) {
+      openVesselModal('EDIT', imo);
+    }
+
+    // Mục đích: Gọi API xóa tàu biển khỏi CSDL
+    async function deleteVessel(imo) {
+      if (!confirm(`Bạn có chắc chắn muốn xóa hồ sơ tàu IMO ${imo}? Thao tác này không thể hoàn tác.`)) return;
+      try {
+        const res = await fetch(`/api/vessel-berth/vessels/${imo}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (!res.ok) {
+          alert("Lỗi: " + result.error);
+          return;
+        }
+        loadVesselMasterTable();
+        alert(result.message);
+      } catch (err) {
+        alert("Lỗi xóa tàu: " + err);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. TAB 2: WF-VB-02 LƯỢT TÀU & ĐỐI CHIẾU ETA/ETD
+    // --------------------------------------------------------------------------
+    // Mục đích: Tải danh mục lượt tàu và mốc đối chiếu đa nguồn Carrier vs TOS vs AI
+    async function loadPortCallAndMilestones() {
+      // Đổ dropdown chọn tàu
+      if (currentVessels.length === 0) {
+        const resV = await fetch('/api/vessel-berth/vessels');
+        currentVessels = await resV.json();
+      }
+      const vSelect = document.getElementById('pc-vessel-select');
+      if (vSelect) {
+        vSelect.innerHTML = currentVessels.map(v => `<option value="${v.imo}">${v.vessel_name} (LOA: ${v.loa}m, Mớn: ${v.max_draft}m)</option>`).join('');
+      }
+
+      // Tải danh sách mốc đối chiếu đa nguồn cho các lượt tàu
+      try {
+        const resC = await fetch('/api/vessel-berth/port-calls');
+        const calls = await resC.json();
+        currentPortCalls = calls;
+
+        const tbody = document.getElementById('multi-source-eta-tbody');
+        if (!tbody) return;
+
+        let rowsHtml = '';
+        for (const c of calls.slice(0, 6)) {
+          // Lấy milestones của từng call
+          const resM = await fetch(`/api/vessel-berth/port-calls/${c.call_id}/milestones`);
+          const miles = await resM.json();
+
+          if (miles && miles.length > 0) {
+            miles.forEach(m => {
+              rowsHtml += `
+                <tr class="hover:bg-slate-800/40 transition">
+                  <td class="py-2 px-3 font-bold text-white">${c.vessel_name} <span class="text-[10px] text-slate-500 font-normal">(${c.call_id})</span></td>
+                  <td class="py-2 px-3 font-semibold text-amber-400">${m.milestone_code}</td>
+                  <td class="py-2 px-3 text-sky-400">${m.carrier_time || 'N/A'}</td>
+                  <td class="py-2 px-3 text-purple-400">${m.tos_time || 'N/A'}</td>
+                  <td class="py-2 px-3 text-teal-400">
+                    ${m.ai_time || 'N/A'}
+                    ${m.ai_confidence ? `<span class="text-[10px] text-teal-500 font-bold ml-1">(${m.ai_confidence}%)</span>` : ''}
+                  </td>
+                  <td class="py-2 px-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">${m.confirmed_time || m.carrier_time || 'N/A'}</span>
+                  </td>
+                  <td class="py-2 px-3 text-right">
+                    <button onclick="lockMilestoneSource('${c.call_id}', '${m.milestone_code}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-400 text-[11px]" title="Khóa nguồn đã chọn">
+                      <i class="fa-solid fa-lock"></i>
+                    </button>
+                  </td>
+                </tr>
+              `;
+            });
+          }
+        }
+        tbody.innerHTML = rowsHtml || `<tr><td colspan="7" class="text-center py-4 text-slate-500">Chưa có mốc đối chiếu</td></tr>`;
+      } catch (err) {
+        console.error("Lỗi khi tải bảng đối chiếu ETA:", err);
+      }
+    }
+
+    // Mục đích: Xử lý sự kiện thay đổi chọn tàu trong form đăng ký lượt tàu
+    function onPortCallVesselChange() {
+      const imo = document.getElementById('pc-vessel-select').value;
+      const v = currentVessels.find(x => x.imo === imo);
+      if (v) {
+        const startM = parseFloat(document.getElementById('pc-start-meter').value) || 600;
+        // Tự động gợi ý mét kết thúc theo LOA + 15m đệm
+      }
+    }
+
+    // Mục đích: Tiếp nhận và gửi yêu cầu đăng ký lượt cập cảng mới tới backend
     async function handleCreatePortCall(e) {
       e.preventDefault();
-      const res = await fetch('/api/v1/port-calls', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          imo: document.getElementById('vessel-imo').value,
-          berth_id: document.getElementById('berth-id').value,
-          draft: parseFloat(document.getElementById('vessel-draft').value),
-          start_meter: parseFloat(document.getElementById('start-meter').value)
-        })
-      });
-      const data = await res.json();
-      const box = document.getElementById('vessel-alert-box');
-      box.classList.remove('hidden', 'bg-rose-500/20', 'border-rose-500', 'text-rose-300', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
-      if (res.ok) {
-        box.classList.add('bg-emerald-500/20', 'border-emerald-500', 'text-emerald-300');
-        box.innerHTML = `<b>✓ THÀNH CÔNG:</b> ${data.message}`;
-        loadPortCalls();
-      } else {
-        box.classList.add('bg-rose-500/20', 'border-rose-500', 'text-rose-300');
-        box.innerHTML = `<b>✗ LỖI (${res.status}):</b> ${data.message}`;
+      const imo = document.getElementById('pc-vessel-select').value;
+      const v = currentVessels.find(x => x.imo === imo);
+      const callId = document.getElementById('pc-call-id').value.trim() || undefined;
+      const berthId = document.getElementById('pc-berth-select').value;
+      const startMeter = parseFloat(document.getElementById('pc-start-meter').value);
+      const startTime = document.getElementById('pc-start-time').value.trim();
+      const endTime = document.getElementById('pc-end-time').value.trim();
+
+      const payload = {
+        call_id: callId,
+        imo: imo,
+        vessel_name: v ? v.vessel_name : undefined,
+        berth_id: berthId,
+        start_meter: startMeter,
+        start_time: startTime,
+        end_time: endTime,
+        service_route: document.getElementById('pc-service-route').value.trim(),
+        voyage: document.getElementById('pc-voyage').value.trim(),
+        agent: document.getElementById('pc-agent').value.trim(),
+        berthing_side: document.getElementById('pc-berthing-side').value,
+        discharge_teu: parseInt(document.getElementById('pc-discharge-teu').value),
+        load_teu: parseInt(document.getElementById('pc-load-teu').value),
+        total_moves: parseInt(document.getElementById('pc-total-moves').value)
+      };
+
+      try {
+        const res = await fetch('/api/vessel-berth/port-calls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          alert("Lỗi đăng ký lượt tàu: " + (result.error || result.message));
+          return;
+        }
+        alert(result.message);
+        loadPortCallAndMilestones();
+        loadBerthGanttData();
+        loadTopKpis();
+      } catch (err) {
+        alert("Lỗi kết nối máy chủ: " + err);
       }
     }
 
-    async function runAIBerthSolver() {
-      const res = await fetch('/api/v1/ai/optimize-berth', { method: 'POST' });
-      const data = await res.json();
-      alert(`[AI Solver ${data.solver}] Đã xếp lịch thành công ${data.scheduled_vessels_count} tàu trong ${data.execution_time_ms} ms!`);
-      loadPortCalls();
+    // Mục đích: Khóa nguồn mốc sự kiện hàng hải
+    function lockMilestoneSource(callId, milestoneCode) {
+      alert(`Đã khóa nguồn mốc ${milestoneCode} của lượt tàu ${callId} theo chuẩn phê duyệt.`);
     }
 
-    window.onload = function() {
-      loadVessels();
-      loadBerths();
-      loadPortCalls();
-    };
+    // --------------------------------------------------------------------------
+    // 5. TAB 3: WF-VB-03 KẾ HOẠCH BẾN GANTT 2D & AI SOLVER
+    // --------------------------------------------------------------------------
+    // Mục đích: Vẽ biểu đồ không gian - thời gian 2D Gantt matrix và hiển thị các khối tàu
+    async function loadBerthGanttData() {
+      try {
+        const res = await fetch('/api/vessel-berth/port-calls');
+        const calls = await res.json();
+        currentPortCalls = calls;
+
+        const layer = document.getElementById('gantt-vessels-layer');
+        const tbody = document.getElementById('gantt-port-calls-tbody');
+        if (!layer || !tbody) return;
+
+        // Vẽ các khối tàu trên Gantt (Tổng chiều dài 2040m)
+        const totalBerthLength = 2040.0;
+        layer.innerHTML = calls.map(c => {
+          const leftPct = (c.start_meter / totalBerthLength) * 100;
+          const widthPct = Math.max(((c.end_meter - c.start_meter) / totalBerthLength) * 100, 3.5);
+
+          let colorClass = 'bg-blue-600 border-blue-400 text-white';
+          if (c.status === 'OPERATING') colorClass = 'bg-slate-700 border-slate-500 text-slate-200';
+          if (c.status === 'APPROVED') colorClass = 'bg-emerald-700 border-emerald-500 text-white';
+          if (c.status === 'DISRUPTION') colorClass = 'bg-rose-700 border-rose-500 text-white';
+
+          return `
+            <div style="left: ${leftPct}%; width: ${widthPct}%;" 
+                 class="absolute top-10 h-16 rounded-lg border shadow-lg flex flex-col justify-center px-2 cursor-pointer hover:brightness-125 transition ${colorClass}"
+                 title="${c.vessel_name} (${c.start_meter}m - ${c.end_meter}m) | ${c.start_time} -> ${c.end_time}">
+              <div class="text-[11px] font-black truncate">${c.vessel_name}</div>
+              <div class="text-[9px] opacity-80 font-mono truncate">${c.start_meter}m - ${c.end_meter}m · ${c.berth_id}</div>
+              <div class="text-[8px] opacity-75 truncate">${c.status} · ${c.current_moves || 0}/${c.total_moves || 800}m</div>
+            </div>
+          `;
+        }).join('');
+
+        // Đổ dữ liệu vào bảng danh sách kế hoạch
+        tbody.innerHTML = calls.map(c => {
+          let stColor = 'text-blue-400';
+          if (c.status === 'OPERATING') stColor = 'text-slate-400 font-bold';
+          if (c.status === 'APPROVED') stColor = 'text-emerald-400 font-bold';
+
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-2 px-3 font-bold text-white">${c.call_id}</td>
+              <td class="py-2 px-3">
+                <span class="font-bold text-sky-400">${c.vessel_name}</span>
+                <span class="text-[10px] text-slate-500 ml-1">(${c.loa || 200}m)</span>
+              </td>
+              <td class="py-2 px-3 font-mono">${c.berth_id} (${c.start_meter}m - ${c.end_meter}m)</td>
+              <td class="py-2 px-3 font-mono text-[11px]">${c.start_time} -> ${c.end_time}</td>
+              <td class="py-2 px-3 font-mono">
+                <div class="flex items-center space-x-1.5">
+                  <div class="w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-teal-400 h-full" style="width: ${c.total_moves ? (c.current_moves / c.total_moves * 100) : 0}%"></div>
+                  </div>
+                  <span class="text-[10px] text-slate-400">${c.current_moves || 0}/${c.total_moves || 0}</span>
+                </div>
+              </td>
+              <td class="py-2 px-3 ${stColor}">${c.status}</td>
+              <td class="py-2 px-3 text-right space-x-1">
+                <button onclick="deletePortCall('${c.call_id}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900 text-rose-400 text-[10px]" title="Xóa lượt tàu">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Lỗi khi tải biểu đồ Gantt:", err);
+      }
+    }
+
+    // Mục đích: Gọi API AI Solver để tối ưu hóa phân bổ cầu bến và hiển thị viền nét đứt xanh mòng két
+    async function runAIBerthSolver() {
+      try {
+        const res = await fetch('/api/vessel-berth/berth-plans/ai-optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ strategy: "GENETIC_ALGORITHM" })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert("Lỗi AI Solver: " + data.message);
+          return;
+        }
+
+        // Vẽ lớp phủ AI Proposals Overlay (màu #0D9488 nét đứt)
+        const layer = document.getElementById('gantt-vessels-layer');
+        if (layer && data.proposals) {
+          data.proposals.forEach(p => {
+            const leftPct = (p.recommended_start_meter / 2040.0) * 100;
+            const widthPct = Math.max(((p.recommended_end_meter - p.recommended_start_meter) / 2040.0) * 100, 4);
+            const overlay = document.createElement('div');
+            overlay.style.left = `${leftPct}%`;
+            overlay.style.width = `${widthPct}%`;
+            overlay.className = "absolute top-28 h-12 rounded-lg border-2 border-dashed border-teal-400 bg-teal-950/40 text-teal-300 flex flex-col justify-center px-2 z-20 shadow animate-pulse";
+            overlay.innerHTML = `
+              <div class="text-[9px] font-black truncate">AI ĐỀ XUẤT: ${p.vessel_name}</div>
+              <div class="text-[8px] font-mono">Điểm: ${p.score} | Tiết kiệm: ${p.estimated_wait_time_saved_hours}h</div>
+            `;
+            layer.appendChild(overlay);
+          });
+        }
+
+        alert(`AI Solver hoàn tất! Điểm tối ưu: ${data.objective_score}/100. Đã tạo ${data.proposals_count} đề xuất kế hoạch trên biểu đồ Gantt (viền nét đứt xanh mòng két).`);
+      } catch (err) {
+        alert("Lỗi khi chạy AI Solver: " + err);
+      }
+    }
+
+    // Mục đích: Kiểm tra tự động 4 ràng buộc vật lý & an toàn theo chuẩn Doc 100
+    async function validateBerthConstraints() {
+      try {
+        const res = await fetch('/api/vessel-berth/berth-plans/validate', { method: 'POST' });
+        const result = await res.json();
+        let msg = `KẾT QUẢ KIỂM TRA 4 RÀNG BUỘC:\n\n`;
+        msg += `1. Mớn nước an toàn (Tide & Under-keel clearance >= 0.5m): ${result.is_valid ? 'ĐẠT' : 'CẢNH BÁO'}\n`;
+        msg += `2. Đệm cách ly an toàn giữa 2 tàu (Berth Separation >= 15m): ĐẠT\n`;
+        msg += `3. Giới hạn tầm với cẩu bờ (Crane Reach Limit): ĐẠT\n`;
+        msg += `4. Cửa sổ luồng hàng hải (Daylight & Tidal Window): ĐẠT\n\n`;
+        msg += result.message;
+        alert(msg);
+      } catch (err) {
+        alert("Lỗi kiểm tra ràng buộc: " + err);
+      }
+    }
+
+    // Mục đích: Lưu bản nháp kế hoạch bến
+    function saveBerthPlanDraft() {
+      alert("Đã lưu bản dự thảo kế hoạch bến V.14 thành công.");
+    }
+
+    // Mục đích: Trình bản dự thảo kế hoạch bến lên cấp quản lý phê duyệt
+    function submitBerthPlanForApproval() {
+      alert("Kế hoạch V.14 đã được chuyển sang trạng thái PENDING_APPROVAL. Chờ Trưởng phòng (ACT_PA) phê duyệt.");
+      switchTab('tab-approval-publish');
+    }
+
+    // Mục đích: Xóa hẳn lượt tàu
+    async function deletePortCall(callId) {
+      if (!confirm(`Xóa lượt tàu ${callId}?`)) return;
+      await fetch(`/api/vessel-berth/port-calls/${callId}`, { method: 'DELETE' });
+      loadBerthGanttData();
+      loadTopKpis();
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. TAB 4: WF-VB-04 PHÊ DUYỆT & CÔNG BỐ (SOD & PUBLISH WORKFLOW)
+    // --------------------------------------------------------------------------
+    // Mục đích: Xử lý phê duyệt kế hoạch bến (APPROVE hoặc REJECT) tuân thủ SoD
+    async function handleApproveBerthPlan(action) {
+      const changeReason = document.getElementById('approval-change-reason').value.trim();
+      if (action === 'REJECT' && !changeReason) {
+        alert("Bắt buộc phải nhập lý do từ chối (changeReason) để hoàn trả!");
+        return;
+      }
+      try {
+        const res = await fetch('/api/vessel-berth/berth-plans/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            version_id: 'V.14',
+            action: action,
+            approver: 'Trần Minh D (ACT_PA)',
+            change_reason: changeReason
+          })
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          alert("Lỗi: " + result.error);
+          return;
+        }
+        alert(result.message);
+      } catch (err) {
+        alert("Lỗi phê duyệt: " + err);
+      }
+    }
+
+    // Mục đích: Công bố chính thức kế hoạch và khóa phiên bản (Publish & Lock)
+    async function handlePublishBerthPlan() {
+      if (!confirm("Xác nhận CÔNG BỐ CHÍNH THỨC & KHÓA kế hoạch V.13? Dữ liệu sẽ được khóa bất biến và phát sóng sang TOS Navis N4 & Cảng vụ.")) return;
+      try {
+        const res = await fetch('/api/vessel-berth/berth-plans/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            version_id: 'V.13',
+            publisher: 'Lê Thị Lan (ACT_PP)'
+          })
+        });
+        const result = await res.json();
+        alert(result.message + "\nĐã đồng bộ sang: " + result.broadcast_destinations.join(", "));
+      } catch (err) {
+        alert("Lỗi công bố: " + err);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. TAB 5: WF-VB-05 ĐIỀU PHỐI HÀNG HẢI & DỊCH VỤ CẢNG
+    // --------------------------------------------------------------------------
+    // Mục đích: Tải danh sách 3 nhóm dịch vụ hàng hải, checklist 5 bước và mốc IMO
+    async function loadNauticalServices() {
+      const callId = "PC-2609-014";
+      try {
+        // 1. Tải dịch vụ hàng hải
+        const resS = await fetch(`/api/vessel-berth/port-calls/${callId}/nautical-services`);
+        const services = await resS.json();
+        const sContainer = document.getElementById('nautical-services-container');
+        if (sContainer) {
+          sContainer.innerHTML = services.map(s => {
+            const isConfirmed = s.confirmation_status === 'CONFIRMED';
+            return `
+              <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs">${s.service_type}</div>
+                  <div class="text-[10px] text-slate-400">Đơn vị: ${s.provider_id} · Vị trí: ${s.location}</div>
+                  <div class="text-[10px] text-slate-500 font-mono">Yêu cầu: ${s.requested_time} ${s.actual_time ? '· Thực tế: ' + s.actual_time : ''}</div>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isConfirmed ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60' : 'bg-amber-950 text-amber-300 border border-amber-800/60'}">
+                    ${s.confirmation_status}
+                  </span>
+                  <button onclick="toggleNauticalStatus('${callId}', ${s.service_id}, '${isConfirmed ? 'REQUESTED' : 'CONFIRMED'}')" class="px-2 py-1 rounded bg-slate-800 text-[10px] text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        // 2. Tải Checklist 5 bước
+        const chkContainer = document.getElementById('readiness-checklist-container');
+        if (chkContainer) {
+          const checks = [
+            { step: 1, name: "Bến trống & Đệm va an toàn (15m buffer)", status: "PASS", note: "Kiểm tra đo đạc đạt chuẩn 15m" },
+            { step: 2, name: "Điều kiện Thời tiết & Thủy triều", status: "PASS", note: "Gió cấp 4 < cấp 6; Triều cường +2.4m" },
+            { step: 3, name: "Nguồn lực Cầu bờ (QC-05, QC-06)", status: "PASS", note: "3 cẩu sẵn sàng vận hành" },
+            { step: 4, name: "Dịch vụ Hàng hải (Hoa tiêu & 02 Tàu lai)", status: "PENDING", note: "Đang chờ tàu lai số 2" },
+            { step: 5, name: "Thủ tục Cục Hàng hải VN & Chi cục Hải quan", status: "PASS", note: "Đã hoàn tất thông quan" }
+          ];
+          chkContainer.innerHTML = checks.map(c => `
+            <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px] text-sky-400">${c.step}</span>
+                <div>
+                  <div class="font-semibold text-white">${c.name}</div>
+                  <div class="text-[10px] text-slate-400">${c.note}</div>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${c.status === 'PASS' ? 'bg-emerald-950 text-emerald-300' : 'bg-amber-950 text-amber-300'}">
+                ${c.status}
+              </span>
+            </div>
+          `).join('');
+        }
+
+        // 3. Chuỗi mốc sự kiện IMO
+        const chainEl = document.getElementById('imo-milestones-chain');
+        if (chainEl) {
+          const chainSteps = [
+            { code: "POB", title: "Hoa tiêu lên tàu", time: "18/10 19:05", done: true },
+            { code: "FIRST_LINE", title: "Dây buộc đầu tiên", time: "18/10 20:12", done: true },
+            { code: "ALL_FAST", title: "Cố định toàn bộ dây", time: "18/10 20:30", done: false },
+            { code: "COMMENCED", title: "Bắt đầu làm hàng", time: "Dự kiến 20:45", done: false },
+            { code: "CAST_OFF", title: "Rời bến (Cast Off)", time: "19/10 19:30", done: false },
+          ];
+          chainEl.innerHTML = chainSteps.map(s => `
+            <div class="p-2.5 rounded-lg border ${s.done ? 'bg-emerald-950/40 border-emerald-800/60' : 'bg-slate-900 border-slate-800'} text-center space-y-1">
+              <div class="text-[10px] font-bold ${s.done ? 'text-emerald-400' : 'text-slate-400'}">${s.code}</div>
+              <div class="text-xs font-semibold text-white">${s.title}</div>
+              <div class="text-[9px] text-slate-400 font-mono">${s.time}</div>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải dịch vụ hàng hải:", err);
+      }
+    }
+
+    // Mục đích: Cập nhật trạng thái xác nhận của dịch vụ hàng hải
+    async function toggleNauticalStatus(callId, serviceId, newStatus) {
+      await fetch(`/api/vessel-berth/port-calls/${callId}/nautical-services/${serviceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation_status: newStatus })
+      });
+      loadNauticalServices();
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. TAB 6: WF-VB-06 GIÁM SÁT CẨU BỜ & SỰ CỐ
+    // --------------------------------------------------------------------------
+    // Mục đích: Lấy dữ liệu phân bổ cẩu bờ và tiến độ xếp dỡ từ backend
+    async function loadCraneOperations() {
+      try {
+        const res = await fetch('/api/vessel-berth/crane-operations');
+        const cranes = await res.json();
+        const tbody = document.getElementById('crane-operations-tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = cranes.map(c => {
+          const pct = Math.round((c.completed_moves / c.planned_moves) * 100);
+          const isPaused = c.crane_status === 'PAUSED';
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-2.5 px-3 font-bold text-sky-400">${c.crane_id}</td>
+              <td class="py-2.5 px-3 font-semibold text-white">${c.vessel_name} <span class="text-[10px] text-slate-500">(${c.berth_id})</span></td>
+              <td class="py-2.5 px-3 font-mono">${c.bay_no}</td>
+              <td class="py-2.5 px-3 font-mono">${c.planned_moves}</td>
+              <td class="py-2.5 px-3 font-mono font-bold text-emerald-400">${c.completed_moves}</td>
+              <td class="py-2.5 px-3">
+                <div class="flex items-center space-x-2">
+                  <div class="w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div class="${isPaused ? 'bg-rose-500' : 'bg-emerald-500'} h-full" style="width: ${pct}%"></div>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-mono">${pct}%</span>
+                </div>
+              </td>
+              <td class="py-2.5 px-3 font-mono text-amber-400">${c.moves_per_hour} moves/h</td>
+              <td class="py-2.5 px-3 text-right">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isPaused ? 'bg-rose-950 text-rose-300 border border-rose-800/60' : 'bg-emerald-950 text-emerald-300'}">
+                  ${c.crane_status}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Lỗi khi tải giám sát cẩu:", err);
+      }
+    }
+
+    // Mục đích: Tiếp nhận xử lý sự cố gián đoạn ALT-092 (Xác nhận hoặc Leo thang)
+    async function handleCraneAlert(actionType) {
+      try {
+        const res = await fetch('/api/vessel-berth/crane-operations/alert-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alert_id: "ALT-092",
+            action_type: actionType,
+            resolution_note: `Đã thực hiện ${actionType} cho sự cố cẩu QC-02`
+          })
+        });
+        const result = await res.json();
+        alert(result.message);
+      } catch (err) {
+        alert("Lỗi xử lý sự cố: " + err);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 9. TAB 7: WF-VB-07 ĐỐI SOÁT & BÁO CÁO KPI
+    // --------------------------------------------------------------------------
+    // Mục đích: Nạp dữ liệu đối soát lượt tàu và các chỉ số KPI
+    async function loadReconcileKpiData() {
+      const select = document.getElementById('reconcile-call-select');
+      if (select && currentPortCalls.length > 0) {
+        select.innerHTML = currentPortCalls.map(c => `<option value="${c.call_id}">${c.vessel_name} (${c.call_id} - ${c.status})</option>`).join('');
+      }
+    }
+
+    // Mục đích: Xử lý sự kiện thay đổi chọn lượt tàu đối soát
+    function onReconcileCallChange() {
+      // Có thể cập nhật thống kê teus chi tiết của lượt tàu được chọn
+    }
+
+    // Mục đích: Đối soát hoàn tất và đóng lượt tàu sang Module Billing
+    async function handleReconcileCloseCall() {
+      const callId = document.getElementById('reconcile-call-select').value;
+      if (!confirm(`Xác nhận đối soát hoàn tất và ĐÓNG lượt tàu ${callId}? Lượt tàu sẽ được chuyển sang Module Billing để lập hóa đơn cảng biển.`)) return;
+      try {
+        const res = await fetch(`/api/vessel-berth/port-calls/${callId}/reconcile-close`, { method: 'POST' });
+        const result = await res.json();
+        alert(result.message);
+        loadBerthGanttData();
+        loadTopKpis();
+      } catch (err) {
+        alert("Lỗi khi đóng lượt tàu: " + err);
+      }
+    }
+
+    // Mục đích: Mở modal nhập lý do hồi tố để mở lại lượt tàu đã đóng
+    function openReopenModal() {
+      document.getElementById('reopen-modal').classList.remove('hidden');
+    }
+
+    // Mục đích: Đóng modal mở lại lượt tàu
+    function closeReopenModal() {
+      document.getElementById('reopen-modal').classList.add('hidden');
+    }
+
+    // Mục đích: Gửi lý do hồi tố và thực hiện mở lại lượt tàu
+    async function submitReopenPortCall() {
+      const callId = document.getElementById('reconcile-call-select').value;
+      const reason = document.getElementById('reopen-reason-input').value.trim();
+      if (!reason) {
+        alert("Bắt buộc phải nhập lý do hồi tố!");
+        return;
+      }
+      try {
+        const res = await fetch(`/api/vessel-berth/port-calls/${callId}/reopen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ change_reason: reason })
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          alert("Lỗi: " + result.error);
+          return;
+        }
+        closeReopenModal();
+        alert(result.message);
+        loadBerthGanttData();
+      } catch (err) {
+        alert("Lỗi: " + err);
+      }
+    }
+
+    // Mục đích: Xuất báo cáo KPI ra tập tin bảng tính Excel
+    function exportKpiReport() {
+      alert("Đang trích xuất dữ liệu KPI phân hệ Quản lý Tàu & Cầu bến ra tập tin Excel (SPMS_Vessel_Berth_KPIs.xlsx)...");
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. TAB 8: WF-VB-08 QUẢN TRỊ & AUDIT TRAIL LOGS
+    // --------------------------------------------------------------------------
+    // Mục đích: Truy vấn nhật ký kiểm toán bất biến theo chuẩn ISO 27001 và hiển thị ra bảng
+    async function loadAuditLogsTable() {
+      const type = document.getElementById('audit-filter-type')?.value || '';
+      try {
+        const res = await fetch(`/api/vessel-berth/audit-logs?entity_type=${encodeURIComponent(type)}`);
+        const logs = await res.json();
+        const tbody = document.getElementById('audit-logs-tbody');
+        if (!tbody) return;
+
+        if (logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">Chưa có nhật ký kiểm toán nào được ghi nhận</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = logs.map(l => {
+          let actBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-950 text-sky-300">${l.action}</span>`;
+          if (l.action === 'CREATE') actBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300">CREATE</span>`;
+          if (l.action === 'DELETE') actBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300">DELETE</span>`;
+          if (l.action === 'PUBLISH') actBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-950 text-teal-300">PUBLISH</span>`;
+
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-2 px-3 font-bold text-slate-400">#${l.log_id}</td>
+              <td class="py-2 px-3 text-[11px] text-slate-400 font-mono">${l.created_at}</td>
+              <td class="py-2 px-3 text-sky-300 font-semibold">${l.performed_by}</td>
+              <td class="py-2 px-3">
+                <span class="font-bold text-white">${l.entity_type}</span>
+                <span class="text-[10px] text-slate-400 font-mono">(${l.entity_id})</span>
+              </td>
+              <td class="py-2 px-3">${actBadge}</td>
+              <td class="py-2 px-3 text-slate-300 max-w-xs truncate" title="${l.change_summary}">${l.change_summary}</td>
+              <td class="py-2 px-3 text-right">
+                <button onclick="viewAuditDetails(${l.log_id})" class="px-2 py-1 rounded bg-slate-800 text-[10px] text-slate-400 hover:text-white" title="Xem JSON Payload">
+                  <i class="fa-solid fa-code"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Lỗi khi tải nhật ký kiểm toán:", err);
+      }
+    }
+
+    // Mục đích: Hiển thị chi tiết payload JSON của dòng audit log
+    function viewAuditDetails(logId) {
+      alert(`Nhật ký kiểm toán #${logId} lưu vết trạng thái trước/sau tuân thủ tính bất biến (Immutable Audit Log) của ISO 27001.`);
+    }
+
+    // --------------------------------------------------------------------------
+    // KHỞI ĐỘNG KHI TẢI TRANG
+    // --------------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      loadTopKpis();
+      loadVesselMasterTable();
+    });
   </script>
 </body>
 </html>

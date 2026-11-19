@@ -22,7 +22,6 @@ ACCESS_TOKEN_EXPIRE_SECONDS = 3600  # Thời hạn sống của Access Token: 1 
 REFRESH_TOKEN_EXPIRE_SECONDS = 86400 * 30  # Thời hạn sống của Refresh Token: 30 ngày
 
 # Bảng ánh xạ vai trò tương đương (Đảm bảo đồng bộ 100% giữa Doc 79, Doc 96 và Schema.sql)
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 ROLE_ALIASES = {
     "ROLE_ADMIN": ["PORT_ADMIN", "ROLE_ADMIN"],
     "PORT_ADMIN": ["ROLE_ADMIN", "PORT_ADMIN"],
@@ -40,7 +39,6 @@ ROLE_ALIASES = {
 
 # ------------------------------------------------------------------------------
 # Function: b64url_encode
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Mã hóa dữ liệu dạng bytes sang chuỗi Base64URL an toàn không có padding '=' (theo chuẩn JWT RFC 7519)
 # ------------------------------------------------------------------------------
 def b64url_encode(data: bytes) -> str:
@@ -50,7 +48,6 @@ def b64url_encode(data: bytes) -> str:
 
 # ------------------------------------------------------------------------------
 # Function: b64url_decode
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Giải mã chuỗi Base64URL về mảng bytes gốc (tự động bổ sung padding '=' nếu thiếu)
 # ------------------------------------------------------------------------------
 def b64url_decode(s: str) -> bytes:
@@ -61,7 +58,6 @@ def b64url_decode(s: str) -> bytes:
 
 # ------------------------------------------------------------------------------
 # Function: hash_password
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Băm mật khẩu người dùng bằng giải thuật PBKDF2-HMAC-SHA256 với 100.000 vòng lặp và muối ngẫu nhiên (Salt)
 # ------------------------------------------------------------------------------
 def hash_password(password: str, salt: str = None):
@@ -77,7 +73,6 @@ def hash_password(password: str, salt: str = None):
 
 # ------------------------------------------------------------------------------
 # Function: verify_password
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Đối chiếu mật khẩu người dùng nhập vào với mã hash và muối đã lưu trong CSDL (chống Timing Attack)
 # ------------------------------------------------------------------------------
 def verify_password(password: str, hashed: str, salt: str) -> bool:
@@ -88,7 +83,6 @@ def verify_password(password: str, hashed: str, salt: str) -> bool:
 
 # ------------------------------------------------------------------------------
 # Function: create_access_token
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Khởi tạo JWT Bearer Access Token chứa đầy đủ thông tin định danh và phân quyền theo chuẩn RFC 7519 & Doc 79
 # ------------------------------------------------------------------------------
 def create_access_token(
@@ -139,7 +133,6 @@ def create_access_token(
 
 # ------------------------------------------------------------------------------
 # Function: decode_access_token
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Giải mã chuỗi JWT, kiểm tra tính toàn vẹn của chữ ký số HMAC-SHA256 và kiểm tra thời hạn hết hạn (exp)
 # ------------------------------------------------------------------------------
 def decode_access_token(token: str) -> dict:
@@ -163,7 +156,6 @@ def decode_access_token(token: str) -> dict:
 
 # ------------------------------------------------------------------------------
 # Function: jwt_required (Alias: token_required)
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Decorator bảo vệ các endpoint API yêu cầu người dùng phải gửi kèm JWT Bearer token hợp lệ trong header Authorization
 # ------------------------------------------------------------------------------
 def jwt_required(optional: bool = False):
@@ -210,7 +202,6 @@ def jwt_required(optional: bool = False):
 
 # ------------------------------------------------------------------------------
 # Function: role_required (Alias: roles_required)
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Decorator kiểm soát phân quyền đa vai trò RBAC (Role-Based Access Control). Chỉ cho phép các vai trò được cấp phép truy cập (Superuser PORT_ADMIN / ROLE_ADMIN luôn có toàn quyền)
 # ------------------------------------------------------------------------------
 def role_required(*allowed_roles):
@@ -257,7 +248,6 @@ def role_required(*allowed_roles):
 
 # ------------------------------------------------------------------------------
 # Function: permission_required
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Decorator kiểm tra quyền hạn chi tiết (granular permission) của người dùng trước khi thực thi endpoint API
 # ------------------------------------------------------------------------------
 def permission_required(permission: str):
@@ -293,6 +283,5 @@ def permission_required(permission: str):
 
 
 # Các bí danh (Aliases) chuẩn hóa theo đúng tên hàm trong Tài liệu Doc 79 (Mục 3.2)
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 token_required = jwt_required
 roles_required = role_required

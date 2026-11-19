@@ -11,7 +11,6 @@ from flask import Blueprint, jsonify, render_template_string
 swagger_bp = Blueprint("swagger_bp", __name__)
 
 # Cấu hình đặc tả OpenAPI 3.0.3 chuẩn doanh nghiệp
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 OPENAPI_SPEC = {
     "openapi": "3.0.3",
     "info": {
@@ -373,7 +372,6 @@ SWAGGER_UI_HTML = """<!DOCTYPE html>
 # ------------------------------------------------------------------------------
 # Function: get_openapi_json
 # Endpoint: GET /api/v1/openapi.json
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Cung cấp tài liệu đặc tả API chuẩn OpenAPI 3.0 dưới định dạng JSON cho các hệ thống đối tác hoặc công cụ tự động (Swagger, Postman)
 # ------------------------------------------------------------------------------
 @swagger_bp.route("/api/v1/openapi.json", methods=["GET"])
@@ -385,7 +383,6 @@ def get_openapi_json():
 # ------------------------------------------------------------------------------
 # Function: swagger_ui
 # Endpoint: GET /api/docs (và bí danh /docs, /swagger)
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Hiển thị giao diện Swagger UI tương tác trực quan tại runtime trên trình duyệt web, hỗ trợ kiểm thử trực tiếp các endpoint API của 2 module Vessel & Yard cùng module Auth
 # ------------------------------------------------------------------------------
 @swagger_bp.route("/api/docs", methods=["GET"])

@@ -37,7 +37,6 @@ app.register_blueprint(swagger_bp)
 
 # ------------------------------------------------------------------------------
 # Function: home
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Phục vụ trang chủ giao diện web tích hợp (Portal) của hệ thống SPMS.
 # ------------------------------------------------------------------------------
 @app.route("/")
@@ -46,7 +45,6 @@ def home():
 
 # ------------------------------------------------------------------------------
 # Function: vessel_page
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Phục vụ giao diện điều hành phân hệ Tàu & Cầu bến (Vessel & Berth).
 # ------------------------------------------------------------------------------
 @app.route("/vessel")
@@ -55,7 +53,6 @@ def vessel_page():
 
 # ------------------------------------------------------------------------------
 # Function: yard_page
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: Phục vụ giao diện điều hành phân hệ Bãi Container (Yard & Container).
 # ------------------------------------------------------------------------------
 @app.route("/yard")
@@ -64,7 +61,6 @@ def yard_page():
 
 # ------------------------------------------------------------------------------
 # Function: run_tests
-# Người thực hiện: Đào Văn Sơn - B23DCCN961
 # Mục đích sử dụng: API kích hoạt chạy toàn bộ bộ kiểm thử tự động (46 test cases) thời gian thực và trả về kết quả JSON.
 # ------------------------------------------------------------------------------
 # REAL DYNAMIC AUTOMATED TESTS ENDPOINT
