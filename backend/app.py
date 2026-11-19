@@ -11,6 +11,7 @@ if backend_dir not in sys.path:
 
 from vessel_berth_backend import vessel_berth_bp
 from yard_container_backend import yard_container_bp
+from auth_backend import auth_bp
 import db
 
 # Initialize database
@@ -20,9 +21,10 @@ db.init_db()
 frontend_dir = os.path.abspath(os.path.join(backend_dir, "..", "frontend"))
 app = Flask(__name__, template_folder=frontend_dir)
 
-# Register both modules
+# Register modules
 app.register_blueprint(vessel_berth_bp)
 app.register_blueprint(yard_container_bp)
+app.register_blueprint(auth_bp)
 
 @app.route("/")
 def home():
@@ -74,7 +76,10 @@ def run_tests():
         # Categorize logically based on test intent
         category = "Chức năng API"
         name_desc = raw_name
-        if "index" in raw_name or "page" in raw_name:
+        if "auth" in raw_name or "login" in raw_name or "jwt" in raw_name or "rbac" in raw_name:
+            category = "Xác thực & Phân quyền (Auth/RBAC)"
+            name_desc = f"Kiểm soát định danh JWT & vai trò RBAC ({raw_name})"
+        elif "index" in raw_name or "page" in raw_name:
             category = "Giao diện Web"
             name_desc = f"Truy cập định tuyến giao diện Web ({raw_name})"
         elif "vessel" in raw_name:

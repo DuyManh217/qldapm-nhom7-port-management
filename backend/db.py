@@ -107,12 +107,108 @@ def init_db():
     );
     """)
 
+    # 7. Bảng Vai trò người dùng (spms_roles)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_roles (
+        role_id TEXT PRIMARY KEY,
+        role_name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        is_system_role INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # 8. Bảng Danh mục quyền hạn (spms_permissions)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_permissions (
+        permission_id TEXT PRIMARY KEY,
+        permission_name TEXT NOT NULL,
+        module TEXT NOT NULL,
+        description TEXT
+    );
+    """)
+
+    # 9. Bảng Tài khoản người dùng (spms_users)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_users (
+        user_id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        phone_number TEXT,
+        terminal_code TEXT NOT NULL DEFAULT 'CTL',
+        department TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_locked INTEGER NOT NULL DEFAULT 0,
+        failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+        last_login_at TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # 10. Bảng liên kết Người dùng - Vai trò (spms_user_roles)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_user_roles (
+        user_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        assigned_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, role_id),
+        FOREIGN KEY (user_id) REFERENCES spms_users(user_id) ON DELETE CASCADE,
+        FOREIGN KEY (role_id) REFERENCES spms_roles(role_id) ON DELETE CASCADE
+    );
+    """)
+
+    # 11. Bảng liên kết Vai trò - Quyền hạn (spms_role_permissions)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_role_permissions (
+        role_id TEXT NOT NULL,
+        permission_id TEXT NOT NULL,
+        PRIMARY KEY (role_id, permission_id),
+        FOREIGN KEY (role_id) REFERENCES spms_roles(role_id) ON DELETE CASCADE,
+        FOREIGN KEY (permission_id) REFERENCES spms_permissions(permission_id) ON DELETE CASCADE
+    );
+    """)
+
+    # 12. Bảng Refresh Token (spms_refresh_tokens)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_refresh_tokens (
+        token_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token_value TEXT NOT NULL UNIQUE,
+        expiry_date TEXT NOT NULL,
+        is_revoked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES spms_users(user_id) ON DELETE CASCADE
+    );
+    """)
+
+    # 13. Bảng Nhật ký kiểm toán bảo mật (spms_audit_logs)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS spms_audit_logs (
+        log_id TEXT PRIMARY KEY,
+        user_id TEXT,
+        username TEXT NOT NULL,
+        action TEXT NOT NULL,
+        resource TEXT NOT NULL,
+        status TEXT NOT NULL,
+        ip_address TEXT,
+        details TEXT,
+        timestamp TEXT NOT NULL
+    );
+    """)
+
     conn.commit()
 
     # Seed data if empty
     cur.execute("SELECT COUNT(*) FROM tbl_berths;")
     if cur.fetchone()[0] == 0:
         seed_data(conn)
+
+    cur.execute("SELECT COUNT(*) FROM spms_users;")
+    if cur.fetchone()[0] == 0:
+        seed_auth_data(conn)
 
     conn.close()
 
@@ -186,6 +282,97 @@ def seed_data(conn):
     INSERT INTO tbl_yard_alerts (alert_id, severity, code, container_no, slot_id, message, timestamp)
     VALUES ('ALT-001', 'WARNING', 'WARN_REEFER_POWER_CHECK', 'TCKU9012384', 'A-01-04-1', 'Container lạnh TCKU9012384 kết nối lưới 3 pha 380V. Nhiệt độ: -18.2°C (Bình thường)', ?)
     """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
+
+    conn.commit()
+
+def seed_auth_data(conn):
+    try:
+        from auth_utils import hash_password
+    except ImportError:
+        # Fallback if imported from parent directory
+        from backend.auth_utils import hash_password
+
+    cur = conn.cursor()
+
+    # 1. Seed Roles
+    roles = [
+        ("ROLE_ADMIN", "Quản trị viên Hệ thống", "Toàn quyền quản trị danh mục, người dùng, hệ thống và audit log"),
+        ("ROLE_DISPATCHER", "Điều độ viên Cảng biển", "Lập kế hoạch cầu bến, điều động tàu, phân bổ ô bãi và cẩu"),
+        ("ROLE_OPERATOR", "Nhân viên Khai thác Cảng", "Thao tác nâng hạ, kiểm đếm container và đảo chuyển bãi"),
+        ("ROLE_SECURITY", "Lực lượng An ninh Cổng", "Kiểm soát xe cổng Smart Gate, camera OCR biển số và barie"),
+        ("ROLE_ACCOUNTANT", "Kế toán Cảng", "Quản lý hóa đơn dịch vụ, ký quỹ ePort và biểu phí cảng"),
+        ("ROLE_CUSTOMER", "Khách hàng Doanh nghiệp Logistics", "Tra cứu tàu, container, đặt lịch hẹn và e-EIR"),
+    ]
+    cur.executemany("INSERT INTO spms_roles (role_id, role_name, description) VALUES (?,?,?)", roles)
+
+    # 2. Seed Permissions
+    permissions = [
+        ("system:admin", "Quản trị toàn hệ thống", "AUTH", "Toàn quyền cấu hình và quản trị hệ thống"),
+        ("user:manage", "Quản lý tài khoản người dùng", "AUTH", "Xem, tạo, sửa và khóa tài khoản"),
+        ("audit:read", "Xem nhật ký bảo mật", "AUTH", "Truy xuất lịch sử tác nghiệp và đăng nhập"),
+        ("vessel:read", "Xem danh sách tàu và lịch cập bến", "VESSEL", "Xem danh mục tàu, bến và port calls"),
+        ("vessel:manage", "Quản trị danh mục tàu & Port Calls", "VESSEL", "Thêm, cập nhật, hủy bỏ kế hoạch cập bến"),
+        ("berth:optimize", "Tối ưu hóa xếp cầu bến AI", "VESSEL", "Chạy mô hình tối ưu berth allocation"),
+        ("yard:read", "Xem trạng thái bãi và container", "YARD", "Xem bản đồ bãi 2D, danh sách container"),
+        ("yard:move", "Di chuyển đảo bãi container", "YARD", "Thực hiện lệnh atomic move container"),
+        ("container:manage", "Quản trị danh mục container", "YARD", "Thêm, sửa, xóa thông tin container"),
+        ("gate:control", "Kiểm soát làn cổng Smart Gate", "GATE", "Điều khiển barie và xử lý ngoại lệ xe cổng"),
+        ("billing:manage", "Quản trị thanh toán và hóa đơn", "BILLING", "Xuất hóa đơn và xác nhận thanh toán"),
+    ]
+    cur.executemany("INSERT INTO spms_permissions (permission_id, permission_name, module, description) VALUES (?,?,?,?)", permissions)
+
+    # 3. Seed Role-Permissions
+    role_perms = [
+        # ADMIN: All permissions
+        ("ROLE_ADMIN", "system:admin"),
+        ("ROLE_ADMIN", "user:manage"),
+        ("ROLE_ADMIN", "audit:read"),
+        ("ROLE_ADMIN", "vessel:read"),
+        ("ROLE_ADMIN", "vessel:manage"),
+        ("ROLE_ADMIN", "berth:optimize"),
+        ("ROLE_ADMIN", "yard:read"),
+        ("ROLE_ADMIN", "yard:move"),
+        ("ROLE_ADMIN", "container:manage"),
+        ("ROLE_ADMIN", "gate:control"),
+        ("ROLE_ADMIN", "billing:manage"),
+        # DISPATCHER
+        ("ROLE_DISPATCHER", "vessel:read"),
+        ("ROLE_DISPATCHER", "vessel:manage"),
+        ("ROLE_DISPATCHER", "berth:optimize"),
+        ("ROLE_DISPATCHER", "yard:read"),
+        ("ROLE_DISPATCHER", "yard:move"),
+        # OPERATOR
+        ("ROLE_OPERATOR", "yard:read"),
+        ("ROLE_OPERATOR", "yard:move"),
+        ("ROLE_OPERATOR", "container:manage"),
+        # SECURITY
+        ("ROLE_SECURITY", "gate:control"),
+        ("ROLE_SECURITY", "yard:read"),
+        # ACCOUNTANT
+        ("ROLE_ACCOUNTANT", "billing:manage"),
+        # CUSTOMER
+        ("ROLE_CUSTOMER", "vessel:read"),
+        ("ROLE_CUSTOMER", "yard:read"),
+    ]
+    cur.executemany("INSERT INTO spms_role_permissions (role_id, permission_id) VALUES (?,?)", role_perms)
+
+    # 4. Seed Users
+    default_users = [
+        ("USR-001", "admin", "Admin@123", "Nguyễn Văn Quản Trị", "admin.spms@saigonnewport.com.vn", "0901234567", "ALL", "Phòng CNTT", "ROLE_ADMIN"),
+        ("USR-002", "dispatcher1", "Dispatch@123", "Trần Đình Điều Độ", "dieu_do.catlai@saigonnewport.com.vn", "0902345678", "CTL", "Phòng Điều độ Tàu & Yard", "ROLE_DISPATCHER"),
+        ("USR-003", "operator1", "Oper@123", "Lê Văn Hiện Trường", "khai_thac.catlai@saigonnewport.com.vn", "0903456789", "CTL", "Phòng Khai thác Container", "ROLE_OPERATOR"),
+        ("USR-004", "security1", "Sec@123", "Hoàng An Ninh Cổng", "an_ninh.catlai@saigonnewport.com.vn", "0904567890", "CTL", "Đội Bảo vệ Cổng Smart Gate", "ROLE_SECURITY"),
+        ("USR-005", "accountant1", "Acc@123", "Phạm Thị Kế Toán", "ke_toan@saigonnewport.com.vn", "0905678901", "ALL", "Phòng Kế toán & Dịch vụ", "ROLE_ACCOUNTANT"),
+        ("USR-006", "customer1", "Cust@123", "Công ty Vận tải Biển Đông", "customer@dongshipping.com", "0906789012", "CTL", "Khách hàng Logistics", "ROLE_CUSTOMER"),
+    ]
+
+    for uid, uname, pwd, fname, email, phone, term, dept, role in default_users:
+        h, salt = hash_password(pwd)
+        cur.execute("""
+        INSERT INTO spms_users (user_id, username, password_hash, salt, full_name, email, phone_number, terminal_code, department)
+        VALUES (?,?,?,?,?,?,?,?,?)
+        """, (uid, uname, h, salt, fname, email, phone, term, dept))
+        cur.execute("INSERT INTO spms_user_roles (user_id, role_id) VALUES (?,?)", (uid, role))
 
     conn.commit()
 

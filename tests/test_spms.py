@@ -12,7 +12,7 @@ if backend_dir not in sys.path:
 from app import app
 from vessel_berth_backend import check_berth_collision
 from yard_container_backend import evaluate_stacking_rules
-from db import get_db, seed_data
+from db import get_db, seed_data, seed_auth_data
 
 class SPMSTestSuite(unittest.TestCase):
     def setUp(self):
@@ -28,6 +28,9 @@ class SPMSTestSuite(unittest.TestCase):
         cur.execute("DELETE FROM tbl_berths;")
         conn.commit()
         seed_data(conn)
+        cur.execute("SELECT COUNT(*) FROM spms_users;")
+        if cur.fetchone()[0] == 0:
+            seed_auth_data(conn)
         conn.close()
 
     def test_01_index_route(self):
@@ -385,6 +388,103 @@ class SPMSTestSuite(unittest.TestCase):
         data = res.get_json()
         self.assertEqual(data["code"], "ERR_SLOT_LOCK_CONFLICT")
         self.assertIn("Xung đột tranh chấp", data["message"])
+
+    def test_31_auth_login_success(self):
+        payload = {"username": "admin", "password": "Admin@123"}
+        res = self.client.post("/api/v1/auth/login", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertIn("access_token", data["data"])
+        self.assertIn("refresh_token", data["data"])
+        self.assertEqual(data["data"]["user"]["username"], "admin")
+        self.assertIn("ROLE_ADMIN", data["data"]["user"]["roles"])
+
+    def test_32_auth_login_invalid_password(self):
+        payload = {"username": "admin", "password": "WrongPassword@999"}
+        res = self.client.post("/api/v1/auth/login", json=payload)
+        self.assertEqual(res.status_code, 401)
+        data = res.get_json()
+        self.assertEqual(data["code"], "INVALID_CREDENTIALS")
+
+    def test_33_auth_login_nonexistent_user(self):
+        payload = {"username": "non_existent_user", "password": "AnyPassword"}
+        res = self.client.post("/api/v1/auth/login", json=payload)
+        self.assertEqual(res.status_code, 401)
+        data = res.get_json()
+        self.assertEqual(data["code"], "INVALID_CREDENTIALS")
+
+    def test_34_auth_get_me_with_token(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "dispatcher1", "password": "Dispatch@123"})
+        token = login_res.get_json()["data"]["access_token"]
+
+        headers = {"Authorization": f"Bearer {token}"}
+        res = self.client.get("/api/v1/auth/me", headers=headers)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["data"]["username"], "dispatcher1")
+        self.assertIn("ROLE_DISPATCHER", data["data"]["roles"])
+
+    def test_35_auth_unauthorized_missing_token(self):
+        res = self.client.get("/api/v1/auth/me")
+        self.assertEqual(res.status_code, 401)
+        data = res.get_json()
+        self.assertEqual(data["code"], "UNAUTHORIZED")
+
+    def test_36_auth_refresh_token(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "operator1", "password": "Oper@123"})
+        rt = login_res.get_json()["data"]["refresh_token"]
+
+        res = self.client.post("/api/v1/auth/refresh", json={"refresh_token": rt})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertIn("access_token", data["data"])
+
+    def test_37_auth_rbac_admin_allowed(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin@123"})
+        token = login_res.get_json()["data"]["access_token"]
+
+        headers = {"Authorization": f"Bearer {token}"}
+        res = self.client.get("/api/v1/auth/users", headers=headers)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertGreaterEqual(data["total"], 6)
+
+    def test_38_auth_rbac_forbidden_for_non_admin(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "dispatcher1", "password": "Dispatch@123"})
+        token = login_res.get_json()["data"]["access_token"]
+
+        headers = {"Authorization": f"Bearer {token}"}
+        res = self.client.get("/api/v1/auth/users", headers=headers)
+        self.assertEqual(res.status_code, 403)
+        data = res.get_json()
+        self.assertEqual(data["code"], "FORBIDDEN")
+
+    def test_39_auth_logout_revokes_tokens(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "accountant1", "password": "Acc@123"})
+        token = login_res.get_json()["data"]["access_token"]
+        rt = login_res.get_json()["data"]["refresh_token"]
+
+        headers = {"Authorization": f"Bearer {token}"}
+        logout_res = self.client.post("/api/v1/auth/logout", headers=headers)
+        self.assertEqual(logout_res.status_code, 200)
+
+        # Refresh token must be revoked
+        ref_res = self.client.post("/api/v1/auth/refresh", json={"refresh_token": rt})
+        self.assertEqual(ref_res.status_code, 401)
+
+    def test_40_auth_audit_logs_recorded(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin@123"})
+        token = login_res.get_json()["data"]["access_token"]
+
+        headers = {"Authorization": f"Bearer {token}"}
+        res = self.client.get("/api/v1/auth/audit-logs", headers=headers)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertGreater(data["count"], 0)
 
 if __name__ == "__main__":
     unittest.main()
