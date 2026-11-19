@@ -312,6 +312,167 @@ def list_users():
     }), 200
 
 
+@auth_bp.route("/api/v1/auth/users", methods=["POST"])
+@jwt_required()
+@role_required("ROLE_ADMIN", "PORT_ADMIN")
+def create_user():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    full_name = data.get("full_name", "").strip()
+    email = data.get("email", "").strip()
+    department = data.get("department", "Phòng Điều độ & Khai thác").strip()
+    terminal_code = data.get("terminal_code", "CTL").strip()
+    phone_number = data.get("phone_number", "")
+    role_id = data.get("role_id", "ROLE_OPERATOR").strip()
+
+    if not username or not password or not full_name or not email:
+        return jsonify({
+            "status": "ERROR",
+            "code": "MISSING_FIELDS",
+            "message": "Vui lòng điền đầy đủ username, password, full_name và email"
+        }), 400
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    # Check existing username or email
+    cur.execute("SELECT user_id FROM spms_users WHERE username = ? OR email = ?", (username, email))
+    if cur.fetchone():
+        conn.close()
+        return jsonify({
+            "status": "ERROR",
+            "code": "USER_ALREADY_EXISTS",
+            "message": "Tên đăng nhập hoặc email đã tồn tại trong hệ thống"
+        }), 400
+
+    user_id = f"USR-{uuid.uuid4().hex[:8].upper()}"
+    h, salt = hash_password(password)
+
+    cur.execute("""
+    INSERT INTO spms_users (user_id, username, password_hash, salt, full_name, email, phone_number, terminal_code, department)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, username, h, salt, full_name, email, phone_number, terminal_code, department))
+
+    # Assign role
+    cur.execute("INSERT INTO spms_user_roles (user_id, role_id) VALUES (?, ?)", (user_id, role_id))
+    conn.commit()
+    conn.close()
+
+    admin_user = g.current_user.get("username") or g.current_user.get("sub")
+    record_audit(g.current_user.get("user_id"), admin_user, "USER_CREATE", "SPMS_USERS", "SUCCESS", f"Tạo tài khoản: {username} ({role_id})")
+
+    return jsonify({
+        "status": "SUCCESS",
+        "message": f"Tạo thành công tài khoản người dùng {username}",
+        "data": {
+            "user_id": user_id,
+            "username": username,
+            "full_name": full_name,
+            "email": email,
+            "department": department,
+            "terminal_code": terminal_code,
+            "role": role_id
+        }
+    }), 201
+
+
+@auth_bp.route("/api/v1/auth/users/<user_id>", methods=["GET"])
+@jwt_required()
+def get_user_by_id(user_id):
+    conn = db.get_db()
+    cur = conn.cursor()
+    cur.execute("""
+    SELECT u.user_id, u.username, u.full_name, u.email, u.phone_number, u.terminal_code, u.department, u.is_active, u.is_locked,
+           GROUP_CONCAT(r.role_id, ', ') AS roles
+    FROM spms_users u
+    LEFT JOIN spms_user_roles ur ON u.user_id = ur.user_id
+    LEFT JOIN spms_roles r ON ur.role_id = r.role_id
+    WHERE u.user_id = ?
+    GROUP BY u.user_id
+    """, (user_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"status": "ERROR", "code": "USER_NOT_FOUND", "message": "Không tìm thấy người dùng"}), 404
+
+    return jsonify({
+        "status": "SUCCESS",
+        "data": dict(row)
+    }), 200
+
+
+@auth_bp.route("/api/v1/auth/users/<user_id>", methods=["PUT"])
+@jwt_required()
+@role_required("ROLE_ADMIN", "PORT_ADMIN")
+def update_user(user_id):
+    data = request.get_json(silent=True) or {}
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM spms_users WHERE user_id = ?", (user_id,))
+    user = cur.fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"status": "ERROR", "code": "USER_NOT_FOUND", "message": "Người dùng không tồn tại"}), 404
+
+    full_name = data.get("full_name", user["full_name"])
+    email = data.get("email", user["email"])
+    department = data.get("department", user["department"])
+    phone_number = data.get("phone_number", user["phone_number"])
+    is_active = data.get("is_active", user["is_active"])
+    is_locked = data.get("is_locked", user["is_locked"])
+
+    cur.execute("""
+    UPDATE spms_users
+    SET full_name = ?, email = ?, department = ?, phone_number = ?, is_active = ?, is_locked = ?
+    WHERE user_id = ?
+    """, (full_name, email, department, phone_number, is_active, is_locked, user_id))
+
+    # If role update requested
+    if "role_id" in data:
+        cur.execute("DELETE FROM spms_user_roles WHERE user_id = ?", (user_id,))
+        cur.execute("INSERT INTO spms_user_roles (user_id, role_id) VALUES (?, ?)", (user_id, data["role_id"]))
+
+    conn.commit()
+    conn.close()
+
+    admin_user = g.current_user.get("username") or g.current_user.get("sub")
+    record_audit(g.current_user.get("user_id"), admin_user, "USER_UPDATE", "SPMS_USERS", "SUCCESS", f"Cập nhật tài khoản: {user['username']}")
+
+    return jsonify({
+        "status": "SUCCESS",
+        "message": f"Cập nhật thông tin tài khoản {user['username']} thành công"
+    }), 200
+
+
+@auth_bp.route("/api/v1/auth/users/<user_id>", methods=["DELETE"])
+@jwt_required()
+@role_required("ROLE_ADMIN", "PORT_ADMIN")
+def delete_user(user_id):
+    conn = db.get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT username FROM spms_users WHERE user_id = ?", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"status": "ERROR", "code": "USER_NOT_FOUND", "message": "Người dùng không tồn tại"}), 404
+
+    username = row["username"]
+    cur.execute("DELETE FROM spms_users WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    admin_user = g.current_user.get("username") or g.current_user.get("sub")
+    record_audit(g.current_user.get("user_id"), admin_user, "USER_DELETE", "SPMS_USERS", "SUCCESS", f"Xóa tài khoản: {username}")
+
+    return jsonify({
+        "status": "SUCCESS",
+        "message": f"Đã xóa vĩnh viễn tài khoản {username}"
+    }), 200
+
+
 @auth_bp.route("/api/v1/auth/roles", methods=["GET"])
 @jwt_required()
 def list_roles():
@@ -329,12 +490,33 @@ def list_roles():
 
 @auth_bp.route("/api/v1/auth/audit-logs", methods=["GET"])
 @jwt_required()
-@role_required("ROLE_ADMIN")
+@role_required("ROLE_ADMIN", "PORT_ADMIN")
 def list_audit_logs():
     limit = request.args.get("limit", 50, type=int)
+    action_filter = request.args.get("action", "").strip()
+    status_filter = request.args.get("status", "").strip()
+    user_filter = request.args.get("username", "").strip()
+
     conn = db.get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM spms_audit_logs ORDER BY timestamp DESC LIMIT ?", (limit,))
+
+    query = "SELECT * FROM spms_audit_logs WHERE 1=1"
+    params = []
+
+    if action_filter:
+        query += " AND action LIKE ?"
+        params.append(f"%{action_filter}%")
+    if status_filter:
+        query += " AND status = ?"
+        params.append(status_filter)
+    if user_filter:
+        query += " AND username = ?"
+        params.append(user_filter)
+
+    query += " ORDER BY timestamp DESC LIMIT ?"
+    params.append(limit)
+
+    cur.execute(query, params)
     logs = [dict(row) for row in cur.fetchall()]
     conn.close()
 

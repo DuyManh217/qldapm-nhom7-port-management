@@ -12,6 +12,7 @@ if backend_dir not in sys.path:
 from vessel_berth_backend import vessel_berth_bp
 from yard_container_backend import yard_container_bp
 from auth_backend import auth_bp
+from swagger_docs import swagger_bp
 import db
 
 # Initialize database
@@ -25,6 +26,7 @@ app = Flask(__name__, template_folder=frontend_dir)
 app.register_blueprint(vessel_berth_bp)
 app.register_blueprint(yard_container_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(swagger_bp)
 
 @app.route("/")
 def home():
@@ -76,9 +78,12 @@ def run_tests():
         # Categorize logically based on test intent
         category = "Chức năng API"
         name_desc = raw_name
-        if "auth" in raw_name or "login" in raw_name or "jwt" in raw_name or "rbac" in raw_name:
-            category = "Xác thực & Phân quyền (Auth/RBAC)"
-            name_desc = f"Kiểm soát định danh JWT & vai trò RBAC ({raw_name})"
+        if "swagger" in raw_name or "openapi" in raw_name:
+            category = "Tài liệu hóa OpenAPI/Swagger"
+            name_desc = f"Kiểm tra đặc tả OpenAPI 3.0 & Swagger UI ({raw_name})"
+        elif "auth" in raw_name or "login" in raw_name or "jwt" in raw_name or "rbac" in raw_name or "user" in raw_name:
+            category = "Xác thực & Quản trị User/Role"
+            name_desc = f"Kiểm soát định danh JWT, RBAC & CRUD người dùng ({raw_name})"
         elif "index" in raw_name or "page" in raw_name:
             category = "Giao diện Web"
             name_desc = f"Truy cập định tuyến giao diện Web ({raw_name})"

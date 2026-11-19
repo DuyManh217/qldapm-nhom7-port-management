@@ -2,6 +2,7 @@ import unittest
 import os
 import sys
 import json
+import time
 
 # Add backend directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,7 @@ class SPMSTestSuite(unittest.TestCase):
         cur.execute("DELETE FROM tbl_port_calls;")
         cur.execute("DELETE FROM tbl_vessels;")
         cur.execute("DELETE FROM tbl_berths;")
+        cur.execute("DELETE FROM spms_users WHERE user_id NOT IN ('USR-001','USR-002','USR-003','USR-004','USR-005','USR-006');")
         conn.commit()
         seed_data(conn)
         cur.execute("SELECT COUNT(*) FROM spms_users;")
@@ -485,6 +487,108 @@ class SPMSTestSuite(unittest.TestCase):
         data = res.get_json()
         self.assertEqual(data["status"], "SUCCESS")
         self.assertGreater(data["count"], 0)
+
+    def test_41_openapi_json_spec(self):
+        res = self.client.get("/api/v1/openapi.json")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["openapi"], "3.0.3")
+        self.assertIn("Hệ thống Quản lý Cảng biển Thông minh (SPMS)", data["info"]["title"])
+        self.assertIn("/api/v1/auth/login", data["paths"])
+        self.assertIn("/api/v1/vessels", data["paths"])
+        self.assertIn("/api/v1/yard/atomic-move", data["paths"])
+        self.assertIn("BearerAuth", data["components"]["securitySchemes"])
+
+    def test_42_swagger_ui_html(self):
+        res = self.client.get("/api/docs")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"swagger-ui", res.data)
+        self.assertIn(b"/api/v1/openapi.json", res.data)
+
+        # Test route /docs and /swagger
+        res_docs = self.client.get("/docs")
+        self.assertEqual(res_docs.status_code, 200)
+
+    def test_43_create_user_by_admin(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin@123"})
+        token = login_res.get_json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        uname = f"planner_{int(time.time() * 1000) % 100000}"
+        payload = {
+            "username": uname,
+            "password": "Password@123",
+            "full_name": "Phan Văn Kế Hoạch",
+            "email": f"{uname}@saigonnewport.com.vn",
+            "department": "Phòng Khai thác Bãi",
+            "terminal_code": "CTL",
+            "role_id": "ROLE_OPERATOR"
+        }
+        res = self.client.post("/api/v1/auth/users", json=payload, headers=headers)
+        self.assertEqual(res.status_code, 201)
+        data = res.get_json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertEqual(data["data"]["username"], uname)
+
+        # Creating duplicate username -> 400
+        dup_res = self.client.post("/api/v1/auth/users", json=payload, headers=headers)
+        self.assertEqual(dup_res.status_code, 400)
+
+    def test_44_update_user_by_admin(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin@123"})
+        token = login_res.get_json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Update existing user dispatcher1
+        update_payload = {
+            "full_name": "Trần Đình Điều Độ Cập Nhật",
+            "department": "Trung tâm Điều độ Tập trung",
+            "is_locked": 0
+        }
+        res = self.client.put("/api/v1/auth/users/USR-002", json=update_payload, headers=headers)
+        self.assertEqual(res.status_code, 200)
+
+        # Verify update
+        get_res = self.client.get("/api/v1/auth/users/USR-002", headers=headers)
+        self.assertEqual(get_res.status_code, 200)
+        self.assertEqual(get_res.get_json()["data"]["full_name"], "Trần Đình Điều Độ Cập Nhật")
+
+    def test_45_delete_user_by_admin(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin@123"})
+        token = login_res.get_json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Create temporary user to delete
+        temp_user = {
+            "username": "temp_user_delete",
+            "password": "TempPassword@123",
+            "full_name": "Người Dùng Tạm",
+            "email": "temp_delete@test.com",
+            "role_id": "ROLE_CUSTOMER"
+        }
+        create_res = self.client.post("/api/v1/auth/users", json=temp_user, headers=headers)
+        uid = create_res.get_json()["data"]["user_id"]
+
+        del_res = self.client.delete(f"/api/v1/auth/users/{uid}", headers=headers)
+        self.assertEqual(del_res.status_code, 200)
+
+        # Check deleted -> 404
+        check_res = self.client.get(f"/api/v1/auth/users/{uid}", headers=headers)
+        self.assertEqual(check_res.status_code, 404)
+
+    def test_46_audit_logs_advanced_filter(self):
+        login_res = self.client.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin@123"})
+        token = login_res.get_json()["data"]["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        res = self.client.get("/api/v1/auth/audit-logs?action=USER_LOGIN&status=SUCCESS&limit=10", headers=headers)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertGreater(data["count"], 0)
+        for log in data["data"]:
+            self.assertIn("USER_LOGIN", log["action"])
+            self.assertEqual(log["status"], "SUCCESS")
 
 if __name__ == "__main__":
     unittest.main()
