@@ -647,35 +647,35 @@
             <span class="text-[10px] text-slate-400 font-mono">Đẩy sang Module Billing</span>
           </div>
 
-          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-2 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="text-slate-400">Chọn lượt tàu đối soát:</span>
-              <select id="reconcile-call-select" onchange="onReconcileCallChange()" class="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-white font-mono">
-                <!-- Nạp danh sách lượt tàu -->
+          <div class="p-3.5 bg-slate-900 rounded-lg border border-slate-800 space-y-3 text-xs">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-slate-400 font-semibold whitespace-nowrap">Chọn lượt tàu đối soát:</span>
+              <select id="reconcile-call-select" onchange="onReconcileCallChange()" class="flex-1 bg-slate-950 border border-slate-700 hover:border-teal-500 rounded px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-teal-400 transition cursor-pointer">
+                <option value="">-- Đang nạp danh sách lượt tàu... --</option>
               </select>
             </div>
             <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-slate-300">
-              <div>
-                <span class="text-[10px] text-slate-500 block">Sản lượng 20ft:</span>
-                <strong class="text-sky-400 font-mono">350 Teus</strong>
+              <div class="bg-slate-950/60 p-2 rounded border border-slate-800/70">
+                <span class="text-[10px] text-slate-400 block font-sans">Dỡ Hàng (Discharge):</span>
+                <strong id="reconcile-teu-discharge" class="text-sky-400 font-mono text-sm">-- Teus</strong>
               </div>
-              <div>
-                <span class="text-[10px] text-slate-500 block">Sản lượng 40ft:</span>
-                <strong class="text-purple-400 font-mono">280 Teus</strong>
+              <div class="bg-slate-950/60 p-2 rounded border border-slate-800/70">
+                <span class="text-[10px] text-slate-400 block font-sans">Xếp Hàng (Load):</span>
+                <strong id="reconcile-teu-load" class="text-purple-400 font-mono text-sm">-- Teus</strong>
               </div>
-              <div>
-                <span class="text-[10px] text-slate-500 block">Hàng lạnh (Reefer):</span>
-                <strong class="text-teal-400 font-mono">45 Teus</strong>
+              <div class="bg-slate-950/60 p-2 rounded border border-slate-800/70">
+                <span class="text-[10px] text-slate-400 block font-sans">Tổng Moves Thực Hiện:</span>
+                <strong id="reconcile-moves-total" class="text-teal-400 font-mono text-sm">-- Moves</strong>
               </div>
             </div>
             <div class="flex justify-between items-center pt-2 border-t border-slate-800/60">
-              <span class="text-slate-400">Trạng thái đối soát:</span>
-              <span id="reconcile-status-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">ĐỦ ĐIỀU KIỆN ĐÓNG</span>
+              <span class="text-slate-400 font-medium">Trạng thái đối soát:</span>
+              <span id="reconcile-status-badge" class="px-2.5 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">CHỜ CHỌN LƯỢT TÀU</span>
             </div>
           </div>
 
           <div class="flex items-center space-x-2 pt-1">
-            <button onclick="handleReconcileCloseCall()" class="flex-1 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded font-bold text-xs shadow transition">
+            <button id="reconcile-close-btn" onclick="handleReconcileCloseCall()" class="flex-1 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded font-bold text-xs shadow transition">
               <i class="fa-solid fa-lock mr-1.5"></i>Đóng Lượt Tàu -> Chuyển Kế Toán Billing
             </button>
             <button onclick="openReopenModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded font-semibold text-xs transition">
@@ -2236,27 +2236,110 @@
     // --------------------------------------------------------------------------
     // 9. TAB 7: WF-VB-07 ĐỐI SOÁT & BÁO CÁO KPI
     // --------------------------------------------------------------------------
-    // Mục đích: Nạp dữ liệu đối soát lượt tàu và các chỉ số KPI
+    // Mục đích: Nạp danh sách lượt tàu đối soát từ backend và hiển thị chi tiết số liệu
     async function loadReconcileKpiData() {
-      const select = document.getElementById('reconcile-call-select');
-      if (select && currentPortCalls.length > 0) {
-        select.innerHTML = currentPortCalls.map(c => `<option value="${c.call_id}">${c.vessel_name} (${c.call_id} - ${c.status})</option>`).join('');
+      try {
+        const res = await fetch('/api/vessel-berth/port-calls');
+        const calls = await res.json();
+        currentPortCalls = calls;
+        const select = document.getElementById('reconcile-call-select');
+        if (!select) return;
+
+        if (!calls || calls.length === 0) {
+          select.innerHTML = '<option value="">-- Không có lượt tàu nào --</option>';
+          onReconcileCallChange();
+          return;
+        }
+
+        const prevVal = select.value;
+        select.innerHTML = calls.map(c => `
+          <option value="${c.call_id}" ${c.call_id === prevVal ? 'selected' : ''}>
+            ${c.vessel_name} (${c.call_id} - ${c.status})
+          </option>
+        `).join('');
+
+        // Tự động chọn lượt tàu đầu tiên nếu chưa chọn
+        if (!select.value && calls.length > 0) {
+          select.value = calls[0].call_id;
+        }
+
+        onReconcileCallChange();
+      } catch (err) {
+        console.error("Lỗi khi tải danh sách lượt tàu đối soát:", err);
       }
     }
 
-    // Mục đích: Xử lý sự kiện thay đổi chọn lượt tàu đối soát
+    // Mục đích: Xử lý sự kiện thay đổi chọn lượt tàu đối soát, cập nhật sản lượng TEU và trạng thái
     function onReconcileCallChange() {
-      // Có thể cập nhật thống kê teus chi tiết của lượt tàu được chọn
+      const select = document.getElementById('reconcile-call-select');
+      if (!select) return;
+      const callId = select.value;
+      const pc = (currentPortCalls || []).find(c => c.call_id === callId);
+
+      const dischargeEl = document.getElementById('reconcile-teu-discharge');
+      const loadEl = document.getElementById('reconcile-teu-load');
+      const movesEl = document.getElementById('reconcile-moves-total');
+      const badgeEl = document.getElementById('reconcile-status-badge');
+      const closeBtn = document.getElementById('reconcile-close-btn');
+
+      if (!pc) {
+        if (dischargeEl) dischargeEl.innerText = '-- Teus';
+        if (loadEl) loadEl.innerText = '-- Teus';
+        if (movesEl) movesEl.innerText = '-- Moves';
+        if (badgeEl) {
+          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700";
+          badgeEl.innerText = "CHƯA CHỌN TÀU";
+        }
+        return;
+      }
+
+      if (dischargeEl) dischargeEl.innerText = `${(pc.discharge_teu || 0).toLocaleString()} Teus`;
+      if (loadEl) loadEl.innerText = `${(pc.load_teu || 0).toLocaleString()} Teus`;
+      const totalMoves = pc.total_moves || ((pc.discharge_teu || 0) + (pc.load_teu || 0));
+      if (movesEl) movesEl.innerText = `${totalMoves.toLocaleString()} Moves`;
+
+      if (badgeEl) {
+        if (pc.status === 'CLOSED') {
+          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-purple-950/80 text-purple-300 border border-purple-700/80";
+          badgeEl.innerText = "ĐÃ ĐỐI SOÁT & ĐÓNG CHUYẾN (CLOSED)";
+        } else if (pc.status === 'DEPARTED') {
+          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-600/80";
+          badgeEl.innerText = "ĐỦ ĐIỀU KIỆN ĐÓNG (ĐÃ RỜI BẾN)";
+        } else if (pc.status === 'OPERATING' || pc.status === 'MOORED') {
+          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-600/80";
+          badgeEl.innerText = `ĐANG LÀM HÀNG TẠI CẢNG (${pc.status})`;
+        } else {
+          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-sky-950/80 text-sky-300 border border-sky-600/80";
+          badgeEl.innerText = `CHƯA CẬP BẾN (${pc.status})`;
+        }
+      }
+
+      if (closeBtn) {
+        if (pc.status === 'CLOSED') {
+          closeBtn.innerHTML = '<i class="fa-solid fa-check-double mr-1.5"></i>Lượt Tàu Đã Đóng (Đã Chuyển Billing)';
+          closeBtn.className = "flex-1 py-2 bg-slate-800 text-slate-500 rounded font-bold text-xs cursor-not-allowed border border-slate-700 transition";
+          closeBtn.disabled = true;
+        } else {
+          closeBtn.innerHTML = '<i class="fa-solid fa-lock mr-1.5"></i>Đóng Lượt Tàu -> Chuyển Kế Toán Billing';
+          closeBtn.className = "flex-1 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded font-bold text-xs shadow transition cursor-pointer";
+          closeBtn.disabled = false;
+        }
+      }
     }
 
     // Mục đích: Đối soát hoàn tất và đóng lượt tàu sang Module Billing
     async function handleReconcileCloseCall() {
       const callId = document.getElementById('reconcile-call-select').value;
+      if (!callId) {
+        alert("Vui lòng chọn một lượt tàu để đối soát!");
+        return;
+      }
       if (!confirm(`Xác nhận đối soát hoàn tất và ĐÓNG lượt tàu ${callId}? Lượt tàu sẽ được chuyển sang Module Billing để lập hóa đơn cảng biển.`)) return;
       try {
         const res = await fetch(`/api/vessel-berth/port-calls/${callId}/reconcile-close`, { method: 'POST' });
         const result = await res.json();
         alert(result.message);
+        loadReconcileKpiData();
         loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
@@ -2295,7 +2378,9 @@
         }
         closeReopenModal();
         alert(result.message);
+        loadReconcileKpiData();
         loadBerthGanttData();
+        loadTopKpis();
       } catch (err) {
         alert("Lỗi: " + err);
       }
@@ -2364,6 +2449,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadTopKpis();
       loadVesselMasterTable();
+      loadReconcileKpiData();
     });
   </script>
 </body>
