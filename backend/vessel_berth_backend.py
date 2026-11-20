@@ -1579,9 +1579,18 @@ def reconcile_close_port_call(call_id):
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     cur.execute("""
         UPDATE tbl_port_calls SET
-            status = 'CLOSED', closed_at = ?
+            status = 'CLOSED', closed_at = ?, current_moves = total_moves
         WHERE call_id = ?
     """, (now_str, call_id))
+
+    # Tự động đồng bộ: Khi lượt tàu đã đối soát & đóng chuyến (CLOSED), toàn bộ cẩu bờ phụ trách hoàn tất 100% moves và chuyển sang STANDBY
+    cur.execute("""
+        UPDATE tbl_crane_assignments SET
+            completed_moves = planned_moves,
+            crane_status = 'STANDBY',
+            moves_per_hour = 0.0
+        WHERE call_id = ?
+    """, (call_id,))
 
     conn.commit()
     conn.close()
@@ -1610,6 +1619,15 @@ def reopen_port_call(call_id):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("UPDATE tbl_port_calls SET status = 'OPERATING', closed_at = NULL, change_reason = ? WHERE call_id = ?", (change_reason, call_id))
+
+    # Tự động đồng bộ: Khi mở lại lượt tàu sang OPERATING, các cẩu bờ phục vụ tàu quay lại trạng thái WORKING
+    cur.execute("""
+        UPDATE tbl_crane_assignments SET
+            crane_status = 'WORKING',
+            moves_per_hour = 28.5
+        WHERE call_id = ?
+    """, (call_id,))
+
     conn.commit()
     conn.close()
 
