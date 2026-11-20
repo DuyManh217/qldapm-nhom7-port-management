@@ -440,13 +440,17 @@
               <span class="text-slate-400">Phiên bản chờ duyệt:</span>
               <span class="font-bold text-white font-mono">V.14 (Tuần 43/2026)</span>
             </div>
-            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
               <span class="text-slate-400">Người lập kế hoạch:</span>
-              <span class="text-sky-300 font-semibold">Nguyễn Văn B (ACT_BP)</span>
+              <span class="text-sky-300 font-semibold" id="approval-creator-name">Nguyễn Văn B (ACT_BP)</span>
             </div>
-            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
+            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
               <span class="text-slate-400">Người thẩm tra & duyệt:</span>
-              <span class="text-emerald-300 font-semibold">Trần Minh D (ACT_PA - Trưởng phòng)</span>
+              <select id="approval-approver-select" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-emerald-300 font-semibold outline-none focus:border-amber-500">
+                <option value="Trần Minh D (ACT_PA)">Trần Minh D (ACT_PA - Trưởng phòng) [Hợp lệ]</option>
+                <option value="Nguyễn Văn B (ACT_BP)">Nguyễn Văn B (ACT_BP - Người lập tự duyệt) [Vi phạm SoD]</option>
+                <option value="Lê Hoàng E (ACT_OM)">Lê Hoàng E (ACT_OM - Giám đốc khai thác) [Hợp lệ]</option>
+              </select>
             </div>
 
             <div>
@@ -1564,6 +1568,9 @@
     // Mục đích: Xử lý phê duyệt kế hoạch bến (APPROVE hoặc REJECT) tuân thủ SoD
     async function handleApproveBerthPlan(action) {
       const changeReason = document.getElementById('approval-change-reason').value.trim();
+      const approverSelect = document.getElementById('approval-approver-select');
+      const approver = approverSelect ? approverSelect.value : 'Trần Minh D (ACT_PA)';
+
       if (action === 'REJECT' && !changeReason) {
         alert("Bắt buộc phải nhập lý do từ chối (changeReason) để hoàn trả!");
         return;
@@ -1575,7 +1582,7 @@
           body: JSON.stringify({
             version_id: 'V.14',
             action: action,
-            approver: 'Trần Minh D (ACT_PA)',
+            approver: approver,
             change_reason: changeReason
           })
         });
@@ -1585,6 +1592,8 @@
           return;
         }
         alert(result.message);
+        loadTopKpis();
+        loadBerthGanttData();
       } catch (err) {
         alert("Lỗi phê duyệt: " + err);
       }
