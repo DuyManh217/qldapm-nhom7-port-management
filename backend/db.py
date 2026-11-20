@@ -548,12 +548,6 @@ def seed_data(conn):
     for c in containers:
         cur.execute("UPDATE tbl_yard_slots SET status = 'OCCUPIED', container_no = ? WHERE slot_id = ?", (c[0], c[7]))
 
-    # Seed alert
-    cur.execute("""
-    INSERT INTO tbl_yard_alerts (alert_id, severity, code, container_no, slot_id, message, timestamp)
-    VALUES ('ALT-001', 'WARNING', 'WARN_REEFER_POWER_CHECK', 'TCKU9012384', 'A-01-04-1', 'Container lạnh TCKU9012384 kết nối lưới 3 pha 380V. Nhiệt độ: -18.2°C (Bình thường)', ?)
-    """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
-
     conn.commit()
 
 # ------------------------------------------------------------------------------
