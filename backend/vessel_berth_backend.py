@@ -1334,6 +1334,66 @@ def crane_alert_action():
     }), 200
 
 
+@vessel_berth_bp.route("/api/vessel-berth/crane-operations/<crane_id>/status", methods=["PUT", "POST"])
+@vessel_berth_bp.route("/crane-operations/<crane_id>/status", methods=["PUT", "POST"])
+def update_crane_status(crane_id):
+    """
+    Mục đích: Cập nhật trạng thái hoạt động của cẩu bờ (WORKING, PAUSED, MAINTENANCE, STANDBY)
+              và tự động điều chỉnh năng suất moves/giờ tương ứng.
+    """
+    crane_id = str(crane_id).strip().upper()
+    data = request.get_json(silent=True) or {}
+    new_status = str(data.get("status") or "").strip().upper()
+    valid_statuses = ["WORKING", "PAUSED", "MAINTENANCE", "STANDBY"]
+
+    if not new_status or new_status not in valid_statuses:
+        return jsonify({
+            "code": "ERR_INVALID_STATUS",
+            "message": f"Trạng thái cẩu không hợp lệ! Cho phép: {', '.join(valid_statuses)}"
+        }), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM tbl_crane_assignments WHERE crane_id = ?", (crane_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({
+            "code": "ERR_CRANE_NOT_FOUND",
+            "message": f"Không tìm thấy cẩu bờ: {crane_id}"
+        }), 404
+
+    old_status = row["crane_status"]
+    
+    speed_map = {
+        "WORKING": 28.5,
+        "PAUSED": 12.0,
+        "MAINTENANCE": 0.0,
+        "STANDBY": 0.0
+    }
+    new_speed = speed_map.get(new_status, 25.0)
+
+    cur.execute("""
+        UPDATE tbl_crane_assignments
+        SET crane_status = ?, moves_per_hour = ?
+        WHERE crane_id = ?
+    """, (new_status, new_speed, crane_id))
+    conn.commit()
+    conn.close()
+
+    add_audit_entry("CRANE", crane_id, "UPDATE_STATUS", "ACT_BP", 
+                    f"Cập nhật trạng thái cẩu bờ {crane_id} từ {old_status} sang {new_status} ({new_speed} moves/h)")
+
+    return jsonify({
+        "code": "SUCCESS",
+        "crane_id": crane_id,
+        "old_status": old_status,
+        "new_status": new_status,
+        "moves_per_hour": new_speed,
+        "message": f"Đã chuyển trạng thái cẩu bờ {crane_id} sang {new_status} ({new_speed} moves/h) thành công!"
+    }), 200
+
+
 # ==============================================================================
 # WF-VB-07: ĐỐI SOÁT LƯỢT TÀU & BÁO CÁO KPI (RECONCILIATION & KPIS)
 # ==============================================================================
