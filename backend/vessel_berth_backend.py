@@ -1196,10 +1196,44 @@ def update_nautical_service(call_id, service_id):
         service_id
     ))
     conn.commit()
+
+    # Tự động đồng bộ sang Bước 4 của Checklist sẵn sàng cập bến nếu tất cả dịch vụ đều CONFIRMED
+    cur.execute("SELECT confirmation_status FROM tbl_nautical_services WHERE call_id = ?", (call_id,))
+    statuses = [r["confirmation_status"] for r in cur.fetchall()]
+    all_confirmed = len(statuses) > 0 and all(st == 'CONFIRMED' for st in statuses)
+
+    chk_status = "PASS" if all_confirmed else "PENDING"
+    chk_note = "Đầy đủ Hoa tiêu & 02 Tàu lai sẵn sàng" if all_confirmed else "Đang chờ dịch vụ tàu lai/hoa tiêu"
+    cur.execute("""
+        UPDATE tbl_readiness_checklist 
+        SET status = ?, note = ?
+        WHERE call_id = ? AND step_number = 4
+    """, (chk_status, chk_note, call_id))
+    conn.commit()
     conn.close()
 
     add_audit_entry("NAUTICAL_SERVICE", str(service_id), "UPDATE", "ACT_BP", f"Cập nhật dịch vụ {service_id} của lượt tàu {call_id}")
     return jsonify({"message": f"Cập nhật dịch vụ hàng hải {service_id} thành công"}), 200
+
+
+@vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/readiness-checklist", methods=["GET"])
+@vessel_berth_bp.route("/port-calls/<call_id>/readiness-checklist", methods=["GET"])
+def get_readiness_checklist(call_id):
+    """
+    Mục đích: Lấy danh sách 5 bước kiểm tra sẵn sàng cập bến (Readiness Checklist) của lượt tàu.
+    """
+    call_id = str(call_id).strip()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT item_id, call_id, step_number, item_name, status, checked_by, note
+        FROM tbl_readiness_checklist
+        WHERE call_id = ?
+        ORDER BY step_number ASC
+    """, (call_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return jsonify(rows), 200
 
 
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/readiness-checklist/<int:item_id>", methods=["PUT"])
@@ -1218,7 +1252,7 @@ def update_readiness_checklist(call_id, item_id):
     """, (
         data.get("status", "PASS"),
         data.get("checked_by", "ACT_BP"),
-        data.get("note", ""),
+        data.get("note", "Đã xác nhận đạt chuẩn"),
         call_id,
         item_id
     ))

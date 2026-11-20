@@ -538,7 +538,7 @@
               <i class="fa-solid fa-list-check"></i>
               <span>CHECKLIST 5 BƯỚC SẴN SÀNG CẬP BẾN (READINESS CHECKLIST)</span>
             </h3>
-            <span class="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/60">Đạt 4/5 bước</span>
+            <span id="readiness-summary-badge" class="text-[10px] text-amber-300 bg-amber-950 px-2 py-0.5 rounded border border-amber-800/60 font-bold">Đạt 4/5 bước</span>
           </div>
           <div class="space-y-2 text-xs" id="readiness-checklist-container">
             <!-- Nạp động bằng loadReadinessChecklist() -->
@@ -1749,30 +1749,55 @@
           }).join('');
         }
 
-        // 2. Tải Checklist 5 bước
+        // 2. Tải Checklist 5 bước sẵn sàng cập bến (Đồng bộ CSDL tbl_readiness_checklist)
         const chkContainer = document.getElementById('readiness-checklist-container');
-        if (chkContainer) {
-          const checks = [
-            { step: 1, name: "Bến trống & Đệm va an toàn (15m buffer)", status: "PASS", note: "Kiểm tra đo đạc đạt chuẩn 15m" },
-            { step: 2, name: "Điều kiện Thời tiết & Thủy triều", status: "PASS", note: "Gió cấp 4 < cấp 6; Triều cường +2.4m" },
-            { step: 3, name: "Nguồn lực Cầu bờ (QC-05, QC-06)", status: "PASS", note: "3 cẩu sẵn sàng vận hành" },
-            { step: 4, name: "Dịch vụ Hàng hải (Hoa tiêu & 02 Tàu lai)", status: "PENDING", note: "Đang chờ tàu lai số 2" },
-            { step: 5, name: "Thủ tục Cục Hàng hải VN & Chi cục Hải quan", status: "PASS", note: "Đã hoàn tất thông quan" }
+        const badgeEl = document.getElementById('readiness-summary-badge');
+        let checks = [];
+        try {
+          const resChk = await fetch(`/api/vessel-berth/port-calls/${callId}/readiness-checklist`);
+          if (resChk.ok) checks = await resChk.json();
+        } catch (e) {
+          console.warn("Could not load readiness checklist dynamically:", e);
+        }
+
+        if (!checks || checks.length === 0) {
+          checks = [
+            { item_id: 1, step_number: 1, item_name: "Bến trống & Đệm va an toàn (15m buffer)", status: "PASS", note: "Kiểm tra đo đạc đạt chuẩn 15m" },
+            { item_id: 2, step_number: 2, item_name: "Điều kiện Thời tiết & Thủy triều", status: "PASS", note: "Gió cấp 4 < cấp 6; Triều cường +2.4m" },
+            { item_id: 3, step_number: 3, item_name: "Nguồn lực Cầu bờ (QC-05, QC-06)", status: "PASS", note: "3 cẩu sẵn sàng vận hành" },
+            { item_id: 4, step_number: 4, item_name: "Dịch vụ Hàng hải (Hoa tiêu & 02 Tàu lai)", status: "PENDING", note: "Đang chờ tàu lai số 2" },
+            { item_id: 5, step_number: 5, item_name: "Thủ tục Cục Hàng hải VN & Chi cục Hải quan", status: "PASS", note: "Đã hoàn tất thông quan" }
           ];
-          chkContainer.innerHTML = checks.map(c => `
-            <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px] text-sky-400">${c.step}</span>
-                <div>
-                  <div class="font-semibold text-white">${c.name}</div>
-                  <div class="text-[10px] text-slate-400">${c.note}</div>
+        }
+
+        if (chkContainer) {
+          const passCount = checks.filter(c => c.status === 'PASS').length;
+          if (badgeEl) {
+            badgeEl.className = `text-[10px] font-bold px-2 py-0.5 rounded border transition-all ${passCount === 5 ? 'text-emerald-300 bg-emerald-950 border-emerald-500 shadow-emerald-900/40 shadow-sm' : 'text-amber-300 bg-amber-950 border-amber-600/60'}`;
+            badgeEl.innerHTML = `Đạt ${passCount}/5 bước${passCount === 5 ? ' · SẴN SÀNG CẬP BẾN' : ''}`;
+          }
+
+          chkContainer.innerHTML = checks.map(c => {
+            const isPass = c.status === 'PASS';
+            const toggleTo = isPass ? 'PENDING' : 'PASS';
+            return `
+              <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-between hover:border-slate-700 transition">
+                <div class="flex items-center space-x-2">
+                  <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px] text-sky-400">${c.step_number || c.step}</span>
+                  <div>
+                    <div class="font-semibold text-white">${c.item_name || c.name}</div>
+                    <div class="text-[10px] text-slate-400">${c.note || ''}</div>
+                  </div>
                 </div>
+                <button onclick="toggleChecklistItem('${callId}', ${c.item_id}, '${toggleTo}')" 
+                        class="px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition flex items-center space-x-1.5 shadow-sm ${isPass ? 'bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700' : 'bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-600'}"
+                        title="Click để đổi trạng thái sang ${toggleTo}">
+                  <span>${c.status}</span>
+                  <i class="fa-solid fa-arrows-rotate text-[9px] opacity-75"></i>
+                </button>
               </div>
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${c.status === 'PASS' ? 'bg-emerald-950 text-emerald-300' : 'bg-amber-950 text-amber-300'}">
-                ${c.status}
-              </span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         }
 
         // 3. Chuỗi mốc sự kiện IMO
@@ -1795,6 +1820,21 @@
         }
       } catch (err) {
         console.error("Lỗi khi tải dịch vụ hàng hải:", err);
+      }
+    }
+
+    // Mục đích: Cập nhật trạng thái từng bước kiểm tra trong Checklist sẵn sàng cập bến
+    async function toggleChecklistItem(callId, itemId, newStatus) {
+      const newNote = newStatus === 'PASS' ? 'Đã thẩm định đạt chuẩn an toàn cập bến' : 'Đang chờ thẩm tra và bổ sung nguồn lực';
+      try {
+        await fetch(`/api/vessel-berth/port-calls/${callId}/readiness-checklist/${itemId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, note: newNote, checked_by: 'ACT_BP' })
+        });
+        loadNauticalServices();
+      } catch (err) {
+        alert("Lỗi cập nhật checklist: " + err);
       }
     }
 
