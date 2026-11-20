@@ -363,7 +363,7 @@
       </div>
 
       <!-- Không gian trực quan Spatiotemporal Gantt Matrix (0 - 2040m) -->
-      <div class="relative w-full h-80 bg-slate-950 rounded-xl border border-slate-800 p-3 flex flex-col justify-between overflow-hidden">
+      <div id="gantt-chart-container" class="relative w-full min-h-[340px] bg-slate-950 rounded-xl border border-slate-800 p-3 flex flex-col justify-between transition-all duration-300">
         <!-- Đường chia các cầu bến B1 -> B6 -->
         <div class="absolute inset-0 flex text-[10px] text-slate-600 font-bold border-b border-slate-800/40 pointer-events-none select-none">
           <div class="w-[14.7%] border-r border-slate-800/60 p-1.5 flex flex-col justify-between">
@@ -1409,7 +1409,7 @@
 
           return `
             <div style="left: ${leftPct}%; width: ${widthPct}%; top: ${topPx}px;" 
-                 class="absolute h-14 rounded-lg border shadow-lg flex flex-col justify-center px-2 cursor-pointer hover:brightness-125 transition z-10 ${colorClass}"
+                 class="vessel-block absolute h-14 rounded-lg border shadow-lg flex flex-col justify-center px-2 cursor-pointer hover:brightness-125 transition z-10 ${colorClass}"
                  title="${c.vessel_name} (${c.start_meter}m - ${c.end_meter}m) | ${c.start_time} -> ${c.end_time}">
               <div class="text-[11px] font-black truncate">${c.vessel_name}</div>
               <div class="text-[9px] opacity-90 font-mono truncate">${c.start_meter}m - ${c.end_meter}m · ${c.berth_id}</div>
@@ -1417,6 +1417,12 @@
             </div>
           `;
         }).join('');
+
+        // Cập nhật chiều cao động của vùng biểu đồ Gantt theo số làn tàu
+        const requiredHeight = Math.max(260, (lanes.length * 66) + 30);
+        layer.style.minHeight = `${requiredHeight}px`;
+        const container = document.getElementById('gantt-chart-container');
+        if (container) container.style.minHeight = `${requiredHeight + 80}px`;
 
         // Đổ dữ liệu vào bảng danh sách kế hoạch
         tbody.innerHTML = calls.map(c => {
@@ -1469,16 +1475,55 @@
           return;
         }
 
+        // Xóa sạch các đề xuất AI cũ trước khi vẽ mới để tránh vẽ chồng chéo
+        document.querySelectorAll('.ai-proposal-overlay').forEach(el => el.remove());
+
         // Vẽ lớp phủ AI Proposals Overlay (màu #0D9488 nét đứt)
         const layer = document.getElementById('gantt-vessels-layer');
         if (layer && data.proposals) {
-          data.proposals.forEach(p => {
+          // Tính toán vị trí top cơ sở để vẽ bên dưới tất cả các làn tàu hiện tại
+          const existingBlocks = layer.querySelectorAll('.vessel-block');
+          let maxExistingBottom = 0;
+          existingBlocks.forEach(b => {
+            const topVal = parseFloat(b.style.top || 0);
+            const hVal = b.offsetHeight || 56;
+            if (topVal + hVal > maxExistingBottom) maxExistingBottom = topVal + hVal;
+          });
+          const baseTop = maxExistingBottom > 0 ? maxExistingBottom + 16 : 210;
+
+          // Thuật toán Multi-lane packing cho các đề xuất AI để tuyệt đối không đè nhau
+          const aiLanes = [];
+          const sortedProposals = [...data.proposals].sort((a, b) => a.recommended_start_meter - b.recommended_start_meter);
+          const proposalPlacements = sortedProposals.map(p => {
+            let assigned = 0;
+            for (let l = 0; l < aiLanes.length; l++) {
+              const hasOverlap = aiLanes[l].some(m => !(p.recommended_end_meter + 10 < m.start || p.recommended_start_meter - 10 > m.end));
+              if (!hasOverlap) {
+                assigned = l;
+                break;
+              }
+              assigned = l + 1;
+            }
+            if (assigned >= aiLanes.length) aiLanes.push([]);
+            aiLanes[assigned].push({ start: p.recommended_start_meter, end: p.recommended_end_meter });
+            return { proposal: p, lane: assigned };
+          });
+
+          // Tự động điều chỉnh kích thước Gantt container để vừa khít tất cả các đề xuất AI
+          const totalAIHeight = baseTop + (aiLanes.length * 58) + 20;
+          layer.style.minHeight = `${totalAIHeight}px`;
+          const container = document.getElementById('gantt-chart-container');
+          if (container) container.style.minHeight = `${totalAIHeight + 80}px`;
+
+          proposalPlacements.forEach(({ proposal: p, lane }) => {
             const leftPct = (p.recommended_start_meter / 2040.0) * 100;
             const widthPct = Math.max(((p.recommended_end_meter - p.recommended_start_meter) / 2040.0) * 100, 4);
+            const topPx = baseTop + (lane * 58);
             const overlay = document.createElement('div');
             overlay.style.left = `${leftPct}%`;
             overlay.style.width = `${widthPct}%`;
-            overlay.className = "absolute top-[218px] h-12 rounded-lg border-2 border-dashed border-teal-400 bg-teal-950/60 text-teal-300 flex flex-col justify-center px-2 z-20 shadow animate-pulse";
+            overlay.style.top = `${topPx}px`;
+            overlay.className = "ai-proposal-overlay absolute h-12 rounded-lg border-2 border-dashed border-teal-400 bg-teal-950/80 text-teal-300 flex flex-col justify-center px-2 z-20 shadow animate-pulse backdrop-blur-sm transition-all";
             overlay.innerHTML = `
               <div class="text-[9px] font-black truncate">AI ĐỀ XUẤT: ${p.vessel_name}</div>
               <div class="text-[8px] font-mono">Điểm: ${p.score} | Tiết kiệm: ${p.estimated_wait_time_saved_hours}h</div>
@@ -1487,7 +1532,7 @@
           });
         }
 
-        alert(`AI Solver hoàn tất! Điểm tối ưu: ${data.objective_score}/100. Đã tạo ${data.proposals_count} đề xuất kế hoạch trên biểu đồ Gantt (viền nét đứt xanh mòng két).`);
+        alert(`AI Solver hoàn tất! Điểm tối ưu: ${data.objective_score}/100. Đã tạo ${data.proposals_count} đề xuất kế hoạch trên biểu đồ Gantt (viền nét đứt xanh ngọc).`);
       } catch (err) {
         alert("Lỗi khi chạy AI Solver: " + err);
       }
