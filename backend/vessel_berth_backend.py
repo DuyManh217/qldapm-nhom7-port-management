@@ -1574,7 +1574,22 @@ def reconcile_close_port_call(call_id):
     pc = cur.fetchone()
     if not pc:
         conn.close()
-        return jsonify({"error": f"Không tìm thấy lượt tàu {call_id}"}), 404
+        return jsonify({"code": "ERR_NOT_FOUND", "message": f"Không tìm thấy lượt tàu {call_id}!"}), 404
+
+    if pc["status"] == "CLOSED":
+        conn.close()
+        return jsonify({
+            "code": "ERR_ALREADY_CLOSED",
+            "message": f"Lượt tàu {call_id} đã được đóng đối soát trước đó và chuyển sang Module Billing!"
+        }), 400
+
+    # ĐIỀU KIỆN ĐÓNG NGHIÊM NGẶT: Chỉ được đóng lượt tàu nếu tàu đã hoàn tất làm hàng và rời cảng (DEPARTED)
+    if pc["status"] != "DEPARTED":
+        conn.close()
+        return jsonify({
+            "code": "ERR_NOT_ELIGIBLE_FOR_CLOSURE",
+            "message": f"CHƯA ĐỦ ĐIỀU KIỆN ĐÓNG: Tàu {pc['vessel_name']} hiện đang ở trạng thái '{pc['status']}' (chưa rời cảng). Quy trình kiểm soát nội bộ cảng chỉ cho phép đối soát đóng lượt tàu khi tàu đã hoàn tất 100% làm hàng và rời cảng (DEPARTED)!"
+        }), 400
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     cur.execute("""

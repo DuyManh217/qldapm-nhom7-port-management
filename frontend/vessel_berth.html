@@ -2303,31 +2303,38 @@
       const totalMoves = pc.total_moves || ((pc.discharge_teu || 0) + (pc.load_teu || 0));
       if (movesEl) movesEl.innerText = `${totalMoves.toLocaleString()} Moves`;
 
+      const isEligible = (pc.status === 'DEPARTED');
+      const isClosed = (pc.status === 'CLOSED');
+
       if (badgeEl) {
-        if (pc.status === 'CLOSED') {
+        if (isClosed) {
           badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-purple-950/80 text-purple-300 border border-purple-700/80";
-          badgeEl.innerText = "ĐÃ ĐỐI SOÁT & ĐÓNG CHUYẾN (CLOSED)";
-        } else if (pc.status === 'DEPARTED') {
+          badgeEl.innerHTML = '<i class="fa-solid fa-lock mr-1"></i>ĐÃ ĐỐI SOÁT & ĐÓNG CHUYẾN (CLOSED)';
+        } else if (isEligible) {
           badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-600/80";
-          badgeEl.innerText = "ĐỦ ĐIỀU KIỆN ĐÓNG (ĐÃ RỜI BẾN)";
-        } else if (pc.status === 'OPERATING' || pc.status === 'MOORED') {
-          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-600/80";
-          badgeEl.innerText = `ĐANG LÀM HÀNG TẠI CẢNG (${pc.status})`;
+          badgeEl.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i>ĐỦ ĐIỀU KIỆN ĐÓNG (ĐÃ RỜI BẾN)';
         } else {
-          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-sky-950/80 text-sky-300 border border-sky-600/80";
-          badgeEl.innerText = `CHƯA CẬP BẾN (${pc.status})`;
+          badgeEl.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-rose-950/80 text-rose-300 border border-rose-700/80";
+          badgeEl.innerHTML = `<i class="fa-solid fa-ban mr-1"></i>CHƯA ĐỦ ĐIỀU KIỆN ĐÓNG (ĐANG ${pc.status})`;
         }
       }
 
       if (closeBtn) {
-        if (pc.status === 'CLOSED') {
+        if (isClosed) {
           closeBtn.innerHTML = '<i class="fa-solid fa-check-double mr-1.5"></i>Lượt Tàu Đã Đóng (Đã Chuyển Billing)';
           closeBtn.className = "flex-1 py-2 bg-slate-800 text-slate-500 rounded font-bold text-xs cursor-not-allowed border border-slate-700 transition";
           closeBtn.disabled = true;
-        } else {
+          closeBtn.title = "Lượt tàu đã được đối soát đóng thành công";
+        } else if (isEligible) {
           closeBtn.innerHTML = '<i class="fa-solid fa-lock mr-1.5"></i>Đóng Lượt Tàu -> Chuyển Kế Toán Billing';
           closeBtn.className = "flex-1 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded font-bold text-xs shadow transition cursor-pointer";
           closeBtn.disabled = false;
+          closeBtn.title = "Tàu đã hoàn tất 100% làm hàng và rời cảng, đủ điều kiện đối soát chốt sổ";
+        } else {
+          closeBtn.innerHTML = '<i class="fa-solid fa-ban mr-1.5"></i>Chưa Đủ Điều Kiện Đóng (Tàu Chưa Rời Cảng)';
+          closeBtn.className = "flex-1 py-2 bg-slate-800/80 text-slate-500 rounded font-bold text-xs cursor-not-allowed border border-slate-800/80 transition";
+          closeBtn.disabled = true;
+          closeBtn.title = `Tàu hiện ở trạng thái '${pc.status}'. Chỉ được đóng khi tàu đã hoàn tất làm hàng và rời cảng (DEPARTED).`;
         }
       }
     }
@@ -2339,15 +2346,23 @@
         alert("Vui lòng chọn một lượt tàu để đối soát!");
         return;
       }
-      if (!confirm(`Xác nhận đối soát hoàn tất và ĐÓNG lượt tàu ${callId}? Lượt tàu sẽ được chuyển sang Module Billing để lập hóa đơn cảng biển.`)) return;
+      const pc = (currentPortCalls || []).find(c => c.call_id === callId);
+      if (!pc || pc.status !== 'DEPARTED') {
+        alert(`CHƯA ĐỦ ĐIỀU KIỆN ĐÓNG: Tàu ${pc ? pc.vessel_name : callId} hiện đang ở trạng thái '${pc ? pc.status : 'N/A'}' (chưa rời cảng). Chỉ được đóng lượt tàu khi tàu đã hoàn tất làm hàng và rời cảng (DEPARTED)!`);
+        return;
+      }
+      if (!confirm(`Xác nhận đối soát hoàn tất và ĐÓNG lượt tàu ${pc.vessel_name} (${callId})? Lượt tàu sẽ được chuyển sang Module Billing để lập hóa đơn cảng biển.`)) return;
       try {
         const res = await fetch(`/api/vessel-berth/port-calls/${callId}/reconcile-close`, { method: 'POST' });
         const result = await res.json();
+        if (!res.ok) {
+          alert("Lỗi đóng lượt tàu: " + (result.message || result.error));
+          return;
+        }
         alert(result.message);
         loadReconcileKpiData();
         loadBerthGanttData();
         loadCraneOperations();
-        loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
         alert("Lỗi khi đóng lượt tàu: " + err);
