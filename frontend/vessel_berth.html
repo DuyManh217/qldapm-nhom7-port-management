@@ -311,9 +311,15 @@
               <i class="fa-solid fa-arrows-split-up-and-left"></i>
               <span>ĐỐI CHIẾU ĐA NGUỒN ETA / ETD (CARRIER vs TOS vs AI FORECAST)</span>
             </h3>
-            <span class="text-[10px] text-teal-400 font-semibold bg-teal-950 px-2 py-0.5 rounded border border-teal-800/60">
-              Smart check: Tin cậy > 85% tự động duyệt
-            </span>
+            <div class="flex items-center space-x-2">
+              <label class="text-[11px] text-slate-400">Chọn tàu:</label>
+              <select id="milestone-filter-call" onchange="filterMilestonesByCall(this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-teal-300 font-semibold outline-none cursor-pointer">
+                <option value="ALL">-- Tất cả lượt tàu --</option>
+              </select>
+              <span class="text-[10px] text-teal-400 font-semibold bg-teal-950 px-2 py-0.5 rounded border border-teal-800/60" title="Độ tin cậy mô hình AIS > 85% có thể tự động duyệt">
+                Tin cậy > 85% duyệt
+              </span>
+            </div>
           </div>
 
           <div class="flex-1 overflow-x-auto">
@@ -1335,43 +1341,107 @@
         const calls = await resC.json();
         currentPortCalls = calls;
 
-        const tbody = document.getElementById('multi-source-eta-tbody');
-        if (!tbody) return;
+        // Thu thập toàn bộ mốc của các lượt tàu
+        window.cachedAllMilestones = [];
+        const filterSelect = document.getElementById('milestone-filter-call');
 
-        let rowsHtml = '';
-        for (const c of calls.slice(0, 6)) {
-          // Lấy milestones của từng call
+        for (const c of calls) {
           const resM = await fetch(`/api/vessel-berth/port-calls/${c.call_id}/milestones`);
           const miles = await resM.json();
-
           if (miles && miles.length > 0) {
             miles.forEach(m => {
-              rowsHtml += `
-                <tr class="hover:bg-slate-800/40 transition">
-                  <td class="py-2 px-3 font-bold text-white">${c.vessel_name} <span class="text-[10px] text-slate-500 font-normal">(${c.call_id})</span></td>
-                  <td class="py-2 px-3 font-semibold text-amber-400">${m.milestone_code}</td>
-                  <td class="py-2 px-3 text-sky-400">${m.carrier_time || 'N/A'}</td>
-                  <td class="py-2 px-3 text-purple-400">${m.tos_time || 'N/A'}</td>
-                  <td class="py-2 px-3 text-teal-400">
-                    ${m.ai_time || 'N/A'}
-                    ${m.ai_confidence ? `<span class="text-[10px] text-teal-500 font-bold ml-1">(${m.ai_confidence}%)</span>` : ''}
-                  </td>
-                  <td class="py-2 px-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">${m.confirmed_time || m.carrier_time || 'N/A'}</span>
-                  </td>
-                  <td class="py-2 px-3 text-right">
-                    <button onclick="lockMilestoneSource('${c.call_id}', '${m.milestone_code}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-400 text-[11px]" title="Khóa nguồn đã chọn">
-                      <i class="fa-solid fa-lock"></i>
-                    </button>
-                  </td>
-                </tr>
-              `;
+              window.cachedAllMilestones.push({ ...m, vessel_name: c.vessel_name });
             });
           }
         }
-        tbody.innerHTML = rowsHtml || `<tr><td colspan="7" class="text-center py-4 text-slate-500">Chưa có mốc đối chiếu</td></tr>`;
+
+        // Điền danh sách tàu vào dropdown lọc
+        if (filterSelect) {
+          const currentVal = filterSelect.value || 'ALL';
+          const distinctCalls = Array.from(new Set(window.cachedAllMilestones.map(m => m.call_id)));
+          filterSelect.innerHTML = `<option value="ALL">-- Tất cả lượt tàu (${distinctCalls.length}) --</option>` +
+            distinctCalls.map(cid => {
+              const item = window.cachedAllMilestones.find(m => m.call_id === cid);
+              return `<option value="${cid}">${item ? item.vessel_name : cid} (${cid})</option>`;
+            }).join('');
+          filterSelect.value = currentVal;
+        }
+
+        renderMilestonesTable(filterSelect ? filterSelect.value : 'ALL');
       } catch (err) {
         console.error("Lỗi khi tải bảng đối chiếu ETA:", err);
+      }
+    }
+
+    // Mục đích: Vẽ bảng đối chiếu đa nguồn theo bộ lọc lượt tàu được chọn
+    function renderMilestonesTable(selectedCallId) {
+      const tbody = document.getElementById('multi-source-eta-tbody');
+      if (!tbody) return;
+
+      const list = (!selectedCallId || selectedCallId === 'ALL')
+        ? (window.cachedAllMilestones || [])
+        : (window.cachedAllMilestones || []).filter(m => m.call_id === selectedCallId);
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-500">Chưa có mốc đối chiếu cho lượt tàu này</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(m => {
+        const isLocked = m.status === 'LOCKED';
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-2 px-3 font-bold text-white">${m.vessel_name || m.call_id} <span class="text-[10px] text-slate-500 font-normal">(${m.call_id})</span></td>
+            <td class="py-2 px-3 font-semibold text-amber-400">${m.milestone_code}</td>
+            <td class="py-2 px-3 text-sky-400 font-bold hover:underline cursor-pointer" onclick="selectMilestoneTime('${m.call_id}', '${m.milestone_code}', '${m.carrier_time}', 'CARRIER')" title="Click để chọn giờ CARRIER">${m.carrier_time || 'N/A'}</td>
+            <td class="py-2 px-3 text-purple-400 font-bold hover:underline cursor-pointer" onclick="selectMilestoneTime('${m.call_id}', '${m.milestone_code}', '${m.tos_time}', 'TOS N4')" title="Click để chọn giờ TOS N4">${m.tos_time || 'N/A'}</td>
+            <td class="py-2 px-3 text-teal-400 font-bold hover:underline cursor-pointer" onclick="selectMilestoneTime('${m.call_id}', '${m.milestone_code}', '${m.ai_time}', 'AI AIS FORECAST')" title="Click để chọn giờ AI AIS FORECAST">
+              ${m.ai_time || 'N/A'}
+              ${m.ai_confidence ? `<span class="text-[10px] text-teal-500 font-bold ml-1">(${m.ai_confidence}%)</span>` : ''}
+            </td>
+            <td class="py-2 px-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isLocked ? 'bg-indigo-950 text-indigo-300 border border-indigo-700' : 'bg-emerald-950 text-emerald-300 border border-emerald-800/60'}" title="Nguồn: ${m.confirmed_by || 'Mặc định'}">
+                ${m.confirmed_time || m.carrier_time || 'N/A'}
+              </span>
+            </td>
+            <td class="py-2 px-3 text-right">
+              <button onclick="lockMilestoneSource('${m.call_id}', '${m.milestone_code}')" class="px-2 py-1 rounded ${isLocked ? 'bg-indigo-900 text-indigo-200' : 'bg-slate-800 hover:bg-slate-700 text-teal-400'} text-[11px] transition" title="${isLocked ? 'Mốc đã được khóa' : 'Khóa mốc này'}">
+                <i class="fa-solid ${isLocked ? 'fa-lock' : 'fa-lock-open'}"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Mục đích: Lọc nhanh danh sách đối chiếu mốc khi thay đổi dropdown
+    function filterMilestonesByCall(callId) {
+      renderMilestonesTable(callId);
+    }
+
+    // Mục đích: Người dùng click chọn giờ từ nguồn CARRIER, TOS N4 hoặc AI AIS để làm giờ xác nhận chính thức
+    async function selectMilestoneTime(callId, milestoneCode, selectedTime, sourceName) {
+      if (!selectedTime || selectedTime === 'N/A') return;
+      try {
+        const res = await fetch(`/api/vessel-berth/port-calls/${callId}/milestones/${milestoneCode}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmed_time: selectedTime, confirmed_by: sourceName })
+        });
+        if (res.ok) {
+          // Cập nhật bộ nhớ đệm
+          if (window.cachedAllMilestones) {
+            const item = window.cachedAllMilestones.find(m => m.call_id === callId && m.milestone_code === milestoneCode);
+            if (item) {
+              item.confirmed_time = selectedTime;
+              item.confirmed_by = sourceName;
+            }
+          }
+          const filterSelect = document.getElementById('milestone-filter-call');
+          renderMilestonesTable(filterSelect ? filterSelect.value : 'ALL');
+        }
+      } catch (e) {
+        console.error("Lỗi chọn mốc:", e);
       }
     }
 
@@ -1475,9 +1545,25 @@
       }
     }
 
-    // Mục đích: Khóa nguồn mốc sự kiện hàng hải
-    function lockMilestoneSource(callId, milestoneCode) {
-      alert(`Đã khóa nguồn mốc ${milestoneCode} của lượt tàu ${callId} theo chuẩn phê duyệt.`);
+    // Mục đích: Khóa nguồn mốc sự kiện hàng hải vào CSDL
+    async function lockMilestoneSource(callId, milestoneCode) {
+      try {
+        const item = window.cachedAllMilestones ? window.cachedAllMilestones.find(m => m.call_id === callId && m.milestone_code === milestoneCode) : null;
+        const newStatus = (item && item.status === 'LOCKED') ? 'CONFIRMED' : 'LOCKED';
+        const res = await fetch(`/api/vessel-berth/port-calls/${callId}/milestones/${milestoneCode}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, confirmed_by: 'DIRECTOR_APPROVED' })
+        });
+        if (res.ok) {
+          if (item) item.status = newStatus;
+          const filterSelect = document.getElementById('milestone-filter-call');
+          renderMilestonesTable(filterSelect ? filterSelect.value : 'ALL');
+          alert(`✓ Đã ${newStatus === 'LOCKED' ? 'khóa' : 'mở khóa'} mốc ${milestoneCode} của lượt tàu ${callId} theo chuẩn phê duyệt.`);
+        }
+      } catch (err) {
+        alert("Lỗi khóa mốc sự kiện: " + err);
+      }
     }
 
     // --------------------------------------------------------------------------

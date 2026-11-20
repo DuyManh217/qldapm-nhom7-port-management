@@ -454,11 +454,29 @@ def seed_data(conn):
 
     # Seed milestones (WF-VB-02 & WF-VB-05)
     milestones = [
+        # MSC GEMMA (PC-2609-014)
         ("PC-2609-014", "ETA", "Thời gian đến phao số 0", "2026-10-18 12:00", "2026-10-18 12:30", "2026-10-18 13:15", 89.0, "2026-10-18 13:15", "AI_ENGINE", None, "CONFIRMED"),
         ("PC-2609-014", "ETD", "Thời gian rời bến", "2026-10-19 18:00", "2026-10-19 15:00", "2026-10-19 19:30", 85.0, "2026-10-19 19:30", "ACT_BP", None, "CONFIRMED"),
         ("PC-2609-014", "POB", "Hoa tiêu lên tàu (Pilot on Board)", None, None, None, None, "2026-10-18 19:00", "ACT_BP", "2026-10-18 19:05", "CONFIRMED"),
         ("PC-2609-014", "FIRST_LINE", "Dây buộc đầu tiên cập bến", None, None, None, None, "2026-10-18 20:10", "ACT_BP", "2026-10-18 20:12", "CONFIRMED"),
         ("PC-2609-014", "ALL_FAST", "Cố định toàn bộ dây (All Fast)", None, None, None, None, "2026-10-18 20:30", "ACT_BP", None, "PENDING"),
+        # HAI AN BELL (CALL-2026-001)
+        ("CALL-2026-001", "ETA", "Thời gian đến phao số 0", "2026-11-07 06:00", "2026-11-07 06:15", "2026-11-07 06:05", 92.0, "2026-11-07 06:05", "AI_ENGINE", "2026-11-07 06:05", "CONFIRMED"),
+        ("CALL-2026-001", "ETD", "Thời gian rời bến", "2026-11-07 18:00", "2026-11-07 18:30", "2026-11-07 18:15", 88.0, "2026-11-07 18:15", "ACT_BP", None, "CONFIRMED"),
+        ("CALL-2026-001", "POB", "Hoa tiêu lên tàu (Pilot on Board)", None, None, None, None, "2026-11-07 06:30", "ACT_BP", "2026-11-07 06:30", "CONFIRMED"),
+        ("CALL-2026-001", "ALL_FAST", "Cố định toàn bộ dây (All Fast)", None, None, None, None, "2026-11-07 07:15", "ACT_BP", "2026-11-07 07:15", "CONFIRMED"),
+        # CMA CGM ANTOINE (PC-2609-015)
+        ("PC-2609-015", "ETA", "Thời gian đến phao số 0", "2026-10-18 13:30", "2026-10-18 14:00", "2026-10-18 13:50", 91.0, "2026-10-18 14:00", "TOS_N4", "2026-10-18 14:00", "CONFIRMED"),
+        ("PC-2609-015", "ETD", "Thời gian rời bến", "2026-10-19 12:00", "2026-10-19 13:00", "2026-10-19 14:30", 86.0, "2026-10-19 14:30", "ACT_BP", None, "CONFIRMED"),
+        ("PC-2609-015", "POB", "Hoa tiêu lên tàu (Pilot on Board)", None, None, None, None, "2026-10-18 14:15", "ACT_BP", "2026-10-18 14:20", "CONFIRMED"),
+        ("PC-2609-015", "ALL_FAST", "Cố định toàn bộ dây (All Fast)", None, None, None, None, "2026-10-18 15:10", "ACT_BP", "2026-10-18 15:10", "CONFIRMED"),
+        # MAERSK HANOI (PC-2609-012)
+        ("PC-2609-012", "ETA", "Thời gian đến phao số 0", "2026-10-18 10:00", "2026-10-18 10:30", "2026-10-18 10:20", 94.0, "2026-10-18 10:20", "AI_ENGINE", "2026-10-18 10:20", "CONFIRMED"),
+        ("PC-2609-012", "ETD", "Thời gian rời bến", "2026-10-19 19:00", "2026-10-19 19:45", "2026-10-19 19:30", 90.0, "2026-10-19 19:30", "ACT_BP", None, "CONFIRMED"),
+        ("PC-2609-012", "ALL_FAST", "Cố định toàn bộ dây (All Fast)", None, None, None, None, "2026-10-18 11:15", "ACT_BP", "2026-10-18 11:20", "CONFIRMED"),
+        # TAN CANG GLORY (CALL-2026-002)
+        ("CALL-2026-002", "ETA", "Thời gian đến phao số 0", "2026-11-07 08:00", "2026-11-07 08:30", "2026-11-07 08:15", 89.0, "2026-11-07 08:15", "AI_ENGINE", "2026-11-07 08:15", "CONFIRMED"),
+        ("CALL-2026-002", "ETD", "Thời gian rời bến", "2026-11-07 22:00", "2026-11-07 22:30", "2026-11-07 22:15", 87.0, "2026-11-07 22:15", "ACT_BP", None, "CONFIRMED"),
     ]
     cur.executemany("""
     INSERT INTO tbl_port_call_milestones (call_id, milestone_code, milestone_name, carrier_time, tos_time, ai_time, ai_confidence, confirmed_time, confirmed_by, actual_time, status)
