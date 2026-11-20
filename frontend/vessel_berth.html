@@ -1464,14 +1464,14 @@
 
           return `
             <div style="left: ${leftPct}%; width: ${widthPct}%; top: ${topPx}px;" 
-                 class="vessel-block absolute h-14 rounded-lg border shadow-lg flex flex-col justify-center px-2 select-none z-10 ${colorClass}"
-                 title="${c.vessel_name} (${c.start_meter}m - ${c.end_meter}m · ${c.berth_id}) | ${c.start_time} -> ${c.end_time}">
+                 class="vessel-block absolute h-14 rounded-lg border shadow-lg flex flex-col justify-center px-2 hover:brightness-125 transition z-10 ${colorClass}"
+                 title="${c.vessel_name} (${c.start_meter}m - ${c.end_meter}m) | ${c.start_time} -> ${c.end_time}">
               <div class="flex items-center justify-between">
                 <div class="text-[11px] font-black truncate">${c.vessel_name}</div>
                 <span class="text-[8px] font-bold px-1 rounded bg-black/40 text-white ml-1">${c.status}</span>
               </div>
               <div class="text-[9px] opacity-90 font-mono truncate">${c.start_meter}m - ${c.end_meter}m · ${c.berth_id}</div>
-              <div class="text-[8px] opacity-80 truncate font-semibold">${c.current_moves || 0}/${c.total_moves || 800} moves · ${c.status}</div>
+              <div class="text-[8px] opacity-80 truncate font-semibold">${c.current_moves || 0}/${c.total_moves || 800}m</div>
             </div>
           `;
         }).join('');
