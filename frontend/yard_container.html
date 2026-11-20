@@ -269,21 +269,21 @@
 
         if (res.ok) {
           box.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-300');
-          box.innerHTML = <b>✓ DI CHUYỂN THÀNH CÔNG:</b> ;
+          box.innerHTML = '<b>✓ DI CHUYỂN THÀNH CÔNG:</b> ' + data.message;
           document.getElementById('move-target-slot').value = '';
           selectedTargetSlot = null;
           await loadContainers(containerNo);
           loadBlock(currentBlock);
-          alert(✓ [DI CHUYỂN THÀNH CÔNG]\n\n);
+          alert('[DI CHUYỂN THÀNH CÔNG]\n\n' + data.message);
         } else {
           box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-          box.innerHTML = <b>✗ VI PHẠM QUY CHUẨN XẾP BÃI ():</b> ;
-          alert(⚠️ [CẢNH BÁO VI PHẠM AN TOÀN BÃI - ]\n\n);
+          box.innerHTML = '<b>✗ VI PHẠM QUY CHUẨN XẾP BÃI (' + res.status + '):</b> ' + data.message;
+          alert('⚠️ [CẢNH BÁO VI PHẠM AN TOÀN BÃI - ' + (data.code || 'ERR') + ']\n\n' + data.message);
           loadYardKPIs();
         }
       } catch (err) {
         box.classList.add('bg-rose-500/20', 'border', 'border-rose-500', 'text-rose-300');
-        box.innerHTML = <b>✗ LỖI KẾT NỐI:</b> ;
+        box.innerHTML = '<b>✗ LỖI KẾT NỐI:</b> ' + err.message;
         alert('❌ Lỗi kết nối: ' + err.message);
       }
     }
@@ -427,7 +427,7 @@
         card.appendChild(bayBox);
         container.appendChild(card);
       });
-      loadAlerts();
+      loadYardKPIs();
     }
 
     async function loadYardKPIs() {
@@ -440,8 +440,6 @@
         if (utilEl) utilEl.innerText = `${kpi.utilization_percent}% (${kpi.active_containers} cont)`;
         const lockEl = document.getElementById('kpi-yard-lock');
         if (lockEl) lockEl.innerText = `${kpi.rtg_cranes_count} Cẩu (Lock ON)`;
-        const alertEl = document.getElementById('alert-count');
-        if (alertEl) alertEl.innerText = `${kpi.alert_count} Active`;
       } catch (err) {
         console.error('Lỗi khi tải KPI bãi:', err);
       }
@@ -719,6 +717,7 @@
     window.onload = () => {
       loadContainers();
       loadBlock('A');
+      loadYardKPIs();
     };
   </script>
 
