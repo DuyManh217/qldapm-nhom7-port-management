@@ -1304,8 +1304,26 @@ def crane_alert_action():
     """
     data = request.json or {}
     alert_id = data.get("alert_id", "ALT-092")
-    action_type = data.get("action_type", "ACKNOWLEDGE")  # ACKNOWLEDGE, ESCALATE, REASSIGN
+    action_type = data.get("action_type", "ACKNOWLEDGE")  # ACKNOWLEDGE, ESCALATE, REASSIGN, RESET
     resolution_note = data.get("resolution_note", "Đã xác nhận sự cố cẩu QC-02, chuyển lệnh sửa chữa khẩn cấp")
+
+    conn = get_db()
+    cur = conn.cursor()
+    if action_type == "ACKNOWLEDGE":
+        cur.execute("""
+            UPDATE tbl_crane_assignments 
+            SET crane_status = 'WORKING', moves_per_hour = 24.5
+            WHERE crane_id = 'QC-02'
+        """)
+        conn.commit()
+    elif action_type == "RESET":
+        cur.execute("""
+            UPDATE tbl_crane_assignments 
+            SET crane_status = 'PAUSED', moves_per_hour = 12.0
+            WHERE crane_id = 'QC-02'
+        """)
+        conn.commit()
+    conn.close()
 
     add_audit_entry("DISRUPTION_ALERT", alert_id, action_type, "ACT_BP", resolution_note)
     return jsonify({
