@@ -247,14 +247,17 @@
             <div class="grid grid-cols-3 gap-2">
               <div>
                 <label class="block text-slate-400 mb-1">Cầu Bến Đề Xuất</label>
-                <select id="pc-berth-select" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
-                  <option value="B1">Bến B1 (0 - 300m)</option>
-                  <option value="B2">Bến B2 (300 - 600m)</option>
-                  <option value="B3" selected>Bến B3 (600 - 950m)</option>
-                  <option value="B4">Bến B4 (950 - 1300m)</option>
-                  <option value="B5">Bến B5 (1300 - 1650m)</option>
-                  <option value="B6">Bến B6 (1650 - 2040m)</option>
+                <select id="pc-berth-select" onchange="onPortCallBerthChange()" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-white">
+                  <option value="B1">Bến B1 (0 - 300m · Mớn nước: 16.0m)</option>
+                  <option value="B2">Bến B2 (300 - 600m · Mớn nước: 16.0m)</option>
+                  <option value="B3" selected>Bến B3 (600 - 950m · Mớn nước: 15.5m)</option>
+                  <option value="B4">Bến B4 (950 - 1300m · Mớn nước: 15.5m)</option>
+                  <option value="B5">Bến B5 (1300 - 1650m · Mớn nước: 15.0m)</option>
+                  <option value="B6">Bến B6 (1650 - 2040m · Mớn nước: 14.5m)</option>
                 </select>
+                <div id="pc-draft-warning" class="hidden text-[10px] text-rose-400 mt-1 font-semibold flex items-center space-x-1">
+                  <i class="fa-solid fa-triangle-exclamation mr-1"></i><span id="pc-draft-warning-text"></span>
+                </div>
               </div>
               <div>
                 <label class="block text-slate-400 mb-1">Mét Bắt Đầu</label>
@@ -1244,6 +1247,26 @@
         vSelect.innerHTML = currentVessels.map(v => `<option value="${v.imo}">${v.vessel_name} (LOA: ${v.loa}m, Mớn: ${v.max_draft}m)</option>`).join('');
       }
 
+      // Đổ dropdown cầu bến hiển thị rõ mét cầu bến và độ sâu mớn nước
+      try {
+        const resB = await fetch('/api/vessel-berth/berths');
+        if (resB.ok) {
+          const berths = await resB.json();
+          const bSelect = document.getElementById('pc-berth-select');
+          if (bSelect && berths && berths.length > 0) {
+            const currentSelected = bSelect.value || 'B3';
+            bSelect.innerHTML = berths.map(b => {
+              const depth = b.depth_draft || b.depth || 15.0;
+              return `<option value="${b.berth_id}" ${b.berth_id === currentSelected ? 'selected' : ''}>${b.name || ('Bến ' + b.berth_id)} (${b.start_meter} - ${b.end_meter}m · Mớn nước: ${depth}m)</option>`;
+            }).join('');
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi tải danh mục cầu bến:', err);
+      }
+
+      checkBerthDraftCompatibility();
+
       // Tải danh sách mốc đối chiếu đa nguồn cho các lượt tàu
       try {
         const resC = await fetch('/api/vessel-berth/port-calls');
@@ -1290,14 +1313,45 @@
       }
     }
 
+    const BERTH_DEPTH_MAP = {
+      'B1': 16.0,
+      'B2': 16.0,
+      'B3': 15.5,
+      'B4': 15.5,
+      'B5': 15.0,
+      'B6': 14.5
+    };
+
+    // Mục đích: Kiểm tra độ mớn nước của tàu có an toàn với độ sâu bến đề xuất không
+    function checkBerthDraftCompatibility() {
+      const vSelect = document.getElementById('pc-vessel-select');
+      const bSelect = document.getElementById('pc-berth-select');
+      const warningEl = document.getElementById('pc-draft-warning');
+      const warningText = document.getElementById('pc-draft-warning-text');
+      if (!vSelect || !bSelect || !warningEl || !warningText) return;
+
+      const imo = vSelect.value;
+      const v = currentVessels.find(x => x.imo === imo);
+      const berthId = bSelect.value;
+      const maxDraft = v ? parseFloat(v.max_draft || 0) : 0;
+      const berthDepth = BERTH_DEPTH_MAP[berthId] || 15.0;
+
+      if (maxDraft > 0 && maxDraft > berthDepth) {
+        warningText.innerText = `Cảnh báo: Mớn tàu (${maxDraft}m) vượt độ sâu bến ${berthId} (${berthDepth}m)!`;
+        warningEl.classList.remove('hidden');
+      } else {
+        warningEl.classList.add('hidden');
+      }
+    }
+
     // Mục đích: Xử lý sự kiện thay đổi chọn tàu trong form đăng ký lượt tàu
     function onPortCallVesselChange() {
-      const imo = document.getElementById('pc-vessel-select').value;
-      const v = currentVessels.find(x => x.imo === imo);
-      if (v) {
-        const startM = parseFloat(document.getElementById('pc-start-meter').value) || 600;
-        // Tự động gợi ý mét kết thúc theo LOA + 15m đệm
-      }
+      checkBerthDraftCompatibility();
+    }
+
+    // Mục đích: Xử lý sự kiện thay đổi chọn cầu bến đề xuất
+    function onPortCallBerthChange() {
+      checkBerthDraftCompatibility();
     }
 
     // Mục đích: Tiếp nhận và gửi yêu cầu đăng ký lượt cập cảng mới tới backend
