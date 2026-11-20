@@ -783,6 +783,55 @@ def delete_port_call(call_id):
     }), 200
 
 
+@vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/status", methods=["PUT", "POST"])
+@vessel_berth_bp.route("/api/v1/port-calls/<call_id>/status", methods=["PUT", "POST"])
+@vessel_berth_bp.route("/port-calls/<call_id>/status", methods=["PUT", "POST"])
+def update_port_call_status(call_id):
+    """
+    Mục đích: Cập nhật trạng thái lượt tàu trong chu trình khai thác (PLANNED, CONFIRMED, APPROVED, MOORED, OPERATING, DISRUPTION, DEPARTED, CLOSED).
+    """
+    call_id = str(call_id).strip()
+    data = request.get_json(silent=True) or {}
+    new_status = str(data.get("status") or "").strip().upper()
+    valid_statuses = ["PLANNED", "CONFIRMED", "APPROVED", "MOORED", "OPERATING", "DISRUPTION", "DEPARTED", "CLOSED", "CANCELLED"]
+
+    if not new_status or new_status not in valid_statuses:
+        return jsonify({
+            "code": "ERR_INVALID_STATUS",
+            "message": f"Trạng thái không hợp lệ! Các trạng thái được phép: {', '.join(valid_statuses)}"
+        }), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM tbl_port_calls WHERE call_id = ?", (call_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({
+            "code": "ERR_CALL_NOT_FOUND",
+            "message": f"Không tìm thấy lượt tàu mã: {call_id}"
+        }), 404
+
+    old_status = row["status"]
+    v_name = row["vessel_name"]
+
+    cur.execute("UPDATE tbl_port_calls SET status = ? WHERE call_id = ?", (new_status, call_id))
+    conn.commit()
+    conn.close()
+
+    add_audit_entry("PORT_CALL", call_id, "UPDATE_STATUS", "ACT_BP", 
+                    f"Cập nhật trạng thái lượt tàu {v_name} ({call_id}) từ {old_status} sang {new_status}",
+                    previous_state=old_status, new_state=new_status)
+
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Đã chuyển trạng thái lượt tàu {v_name} ({call_id}) sang {new_status}!",
+        "call_id": call_id,
+        "old_status": old_status,
+        "new_status": new_status
+    }), 200
+
+
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/cancel", methods=["POST"])
 @vessel_berth_bp.route("/port-calls/<call_id>/cancel", methods=["POST"])
 def cancel_port_call(call_id):

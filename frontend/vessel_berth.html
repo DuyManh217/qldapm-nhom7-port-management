@@ -1463,12 +1463,16 @@
           if (c.status === 'DISRUPTION') colorClass = 'bg-rose-700/95 border-rose-400 text-white';
 
           return `
-            <div style="left: ${leftPct}%; width: ${widthPct}%; top: ${topPx}px;" 
-                 class="vessel-block absolute h-14 rounded-lg border shadow-lg flex flex-col justify-center px-2 cursor-pointer hover:brightness-125 transition z-10 ${colorClass}"
-                 title="${c.vessel_name} (${c.start_meter}m - ${c.end_meter}m) | ${c.start_time} -> ${c.end_time}">
-              <div class="text-[11px] font-black truncate">${c.vessel_name}</div>
+            <div onclick="openPortCallQuickModal('${c.call_id}')"
+                 style="left: ${leftPct}%; width: ${widthPct}%; top: ${topPx}px;" 
+                 class="vessel-block absolute h-14 rounded-lg border shadow-lg flex flex-col justify-center px-2 cursor-pointer hover:brightness-125 hover:scale-[1.01] transition-all z-10 ${colorClass}"
+                 title="Click để đổi trạng thái hoặc xem chi tiết: ${c.vessel_name} (${c.start_meter}m - ${c.end_meter}m) | ${c.start_time} -> ${c.end_time}">
+              <div class="flex items-center justify-between">
+                <div class="text-[11px] font-black truncate">${c.vessel_name}</div>
+                <span class="text-[8px] font-bold px-1 rounded bg-black/40 text-white ml-1">${c.status}</span>
+              </div>
               <div class="text-[9px] opacity-90 font-mono truncate">${c.start_meter}m - ${c.end_meter}m · ${c.berth_id}</div>
-              <div class="text-[8px] opacity-80 truncate font-semibold">${c.status} · ${c.current_moves || 0}/${c.total_moves || 800}m</div>
+              <div class="text-[8px] opacity-80 truncate font-semibold">${c.current_moves || 0}/${c.total_moves || 800}m · Click đổi trạng thái</div>
             </div>
           `;
         }).join('');
@@ -1484,9 +1488,11 @@
 
         // Đổ dữ liệu vào bảng danh sách kế hoạch
         tbody.innerHTML = calls.map(c => {
-          let stColor = 'text-blue-400';
-          if (c.status === 'OPERATING') stColor = 'text-slate-400 font-bold';
-          if (c.status === 'APPROVED') stColor = 'text-emerald-400 font-bold';
+          let stColor = 'text-blue-400 border-blue-500/40';
+          if (c.status === 'OPERATING') stColor = 'text-slate-300 border-slate-500/40';
+          if (c.status === 'APPROVED') stColor = 'text-emerald-400 border-emerald-500/40';
+          if (c.status === 'DISRUPTION') stColor = 'text-rose-400 border-rose-500/40';
+          if (c.status === 'DEPARTED') stColor = 'text-slate-500 border-slate-700';
 
           return `
             <tr class="hover:bg-slate-800/40 transition">
@@ -1505,7 +1511,19 @@
                   <span class="text-[10px] text-slate-400">${c.current_moves || 0}/${c.total_moves || 0}</span>
                 </div>
               </td>
-              <td class="py-2 px-3 ${stColor}">${c.status}</td>
+              <td class="py-2 px-3">
+                <select onchange="changePortCallStatus('${c.call_id}', this.value)" 
+                        class="bg-slate-950 border rounded px-2 py-1 text-xs font-bold outline-none cursor-pointer focus:border-teal-400 ${stColor}">
+                  <option value="PLANNED" ${c.status === 'PLANNED' ? 'selected' : ''} class="text-blue-400 bg-slate-900">PLANNED (Đã xếp lịch)</option>
+                  <option value="APPROVED" ${c.status === 'APPROVED' ? 'selected' : ''} class="text-emerald-400 bg-slate-900">APPROVED (Đã duyệt)</option>
+                  <option value="CONFIRMED" ${c.status === 'CONFIRMED' ? 'selected' : ''} class="text-blue-300 bg-slate-900">CONFIRMED (Xác nhận)</option>
+                  <option value="MOORED" ${c.status === 'MOORED' ? 'selected' : ''} class="text-sky-300 bg-slate-900">MOORED (Cập bến)</option>
+                  <option value="OPERATING" ${c.status === 'OPERATING' ? 'selected' : ''} class="text-slate-300 bg-slate-900">OPERATING (Đang bốc dỡ)</option>
+                  <option value="DISRUPTION" ${c.status === 'DISRUPTION' ? 'selected' : ''} class="text-rose-400 bg-slate-900">DISRUPTION (Sự cố trễ)</option>
+                  <option value="DEPARTED" ${c.status === 'DEPARTED' ? 'selected' : ''} class="text-slate-500 bg-slate-900">DEPARTED (Đã rời cảng)</option>
+                  <option value="CLOSED" ${c.status === 'CLOSED' ? 'selected' : ''} class="text-purple-400 bg-slate-900">CLOSED (Đã đóng đối soát)</option>
+                </select>
+              </td>
               <td class="py-2 px-3 text-right space-x-1">
                 <button onclick="deletePortCall('${c.call_id}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900 text-rose-400 text-[10px]" title="Xóa lượt tàu">
                   <i class="fa-solid fa-trash"></i>
@@ -1615,6 +1633,61 @@
     function submitBerthPlanForApproval() {
       alert("Kế hoạch V.14 đã được chuyển sang trạng thái PENDING_APPROVAL. Chờ Trưởng phòng (ACT_PA) phê duyệt.");
       switchTab('tab-approval-publish');
+    }
+
+    // Mục đích: Cập nhật trạng thái lượt tàu và phản ánh ngay màu sắc trên biểu đồ Gantt
+    async function changePortCallStatus(callId, newStatus) {
+      try {
+        const res = await fetch(`/api/vessel-berth/port-calls/${callId}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert("Lỗi đổi trạng thái: " + (data.message || data.error));
+          loadBerthGanttData();
+          return;
+        }
+        loadBerthGanttData();
+        loadTopKpis();
+      } catch (err) {
+        alert("Lỗi kết nối khi cập nhật trạng thái: " + err);
+        loadBerthGanttData();
+      }
+    }
+
+    // Mục đích: Mở hộp thoại nhanh khi click vào khối tàu trên biểu đồ Gantt để đổi trạng thái
+    async function openPortCallQuickModal(callId) {
+      const call = currentPortCalls.find(c => c.call_id === callId);
+      if (!call) return;
+      const statusList = ["PLANNED", "APPROVED", "CONFIRMED", "MOORED", "OPERATING", "DISRUPTION", "DEPARTED", "CLOSED"];
+      const promptText = `TÀU: ${call.vessel_name} (${call.call_id})\n` +
+        `Cầu bến: ${call.berth_id} (${call.start_meter}m - ${call.end_meter}m)\n` +
+        `Trạng thái hiện tại: [${call.status}]\n\n` +
+        `Chọn trạng thái mới muốn chuyển đổi:\n` +
+        `1: PLANNED (Đã xếp lịch - Khối xanh dương)\n` +
+        `2: APPROVED (Đã duyệt kế hoạch - Khối xanh lá)\n` +
+        `3: CONFIRMED (Xác nhận hoa tiêu/dây - Khối xanh dương)\n` +
+        `4: MOORED (Đã cập bến an toàn - Khối xanh dương)\n` +
+        `5: OPERATING (Đang bốc dỡ làm hàng - Khối xám)\n` +
+        `6: DISRUPTION (Gặp sự cố/Trễ bến - Khối đỏ)\n` +
+        `7: DEPARTED (Đã rời cảng - Giải phóng bến)\n` +
+        `8: CLOSED (Đóng đối soát mốc)\n\n` +
+        `Nhập số (1-8) hoặc tên trạng thái:`;
+      const input = prompt(promptText, call.status);
+      if (!input) return;
+      let targetStatus = input.trim().toUpperCase();
+      const numMap = {
+        '1': 'PLANNED', '2': 'APPROVED', '3': 'CONFIRMED',
+        '4': 'MOORED', '5': 'OPERATING', '6': 'DISRUPTION', '7': 'DEPARTED', '8': 'CLOSED'
+      };
+      if (numMap[targetStatus]) targetStatus = numMap[targetStatus];
+      if (statusList.includes(targetStatus)) {
+        await changePortCallStatus(callId, targetStatus);
+      } else {
+        alert("Trạng thái không hợp lệ! Vui lòng chọn từ 1 đến 8 hoặc tên trạng thái.");
+      }
     }
 
     // Mục đích: Xóa hẳn lượt tàu
