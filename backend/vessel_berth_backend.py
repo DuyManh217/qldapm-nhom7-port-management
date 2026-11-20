@@ -1483,6 +1483,33 @@ def add_crane_assignment():
         conn.close()
         return jsonify({"code": "ERR_CALL_NOT_FOUND", "message": f"Không tìm thấy lượt tàu {call_id}!"}), 404
 
+    # 1. Ràng buộc an toàn: Không cho phép 2 cẩu bờ cùng làm việc tại 1 Bay trên cùng 1 con tàu (Chống va chạm)
+    cur.execute("""
+        SELECT crane_id FROM tbl_crane_assignments 
+        WHERE call_id = ? AND UPPER(bay_no) = ? AND crane_status IN ('WORKING', 'PAUSED', 'MAINTENANCE')
+    """, (call_id, bay_no.upper()))
+    conflict_bay = cur.fetchone()
+    if conflict_bay:
+        conn.close()
+        return jsonify({
+            "code": "ERR_CRANE_BAY_CONFLICT",
+            "message": f"CẢNH BÁO VA CHẠM AN TOÀN: Khoang hầm {bay_no} trên tàu {pc['vessel_name']} hiện đang có cẩu {conflict_bay['crane_id']} phụ trách! Theo quy chuẩn an toàn hàng hải, mỗi Bay hầm tàu chỉ cho phép 1 cẩu bờ hoạt động để tránh va chạm cần cẩu và khung cẩu (Spreader Collision)."
+        }), 400
+
+    # 2. Ràng buộc thiết bị: Không phân bổ cẩu đang bận làm việc cho tàu khác
+    cur.execute("""
+        SELECT ca.*, pc.vessel_name FROM tbl_crane_assignments ca
+        JOIN tbl_port_calls pc ON ca.call_id = pc.call_id
+        WHERE ca.crane_id = ? AND ca.crane_status IN ('WORKING', 'PAUSED')
+    """, (crane_id,))
+    crane_busy = cur.fetchone()
+    if crane_busy:
+        conn.close()
+        return jsonify({
+            "code": "ERR_CRANE_BUSY",
+            "message": f"Cẩu bờ {crane_id} hiện đang bốc dỡ cho tàu {crane_busy['vessel_name']} ({crane_busy['bay_no']})! Vui lòng giải phóng cẩu hoặc chọn cẩu bờ khác đang ở trạng thái STANDBY."
+        }), 400
+
     cur.execute("""
         INSERT INTO tbl_crane_assignments (call_id, crane_id, bay_no, planned_moves, completed_moves, crane_status, moves_per_hour)
         VALUES (?, ?, ?, ?, ?, ?, ?)
