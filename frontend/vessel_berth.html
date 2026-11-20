@@ -53,19 +53,12 @@
           <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-900/60 text-teal-300 border border-teal-700/60">PortCallPortalUI</span>
           <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900/60 text-blue-300 border border-blue-700/60">CAT_LAI</span>
         </div>
-        <p class="text-xs text-slate-400">
-          Người thực hiện: <span class="text-amber-400 font-semibold">Đào Văn Sơn - B23DCCN961</span> · Vai trò hiện tại: <span class="text-sky-300 font-semibold">Điều độ viên bến (ACT_BP)</span> · Chuẩn IMO/Navis N4/ISO 27001
-        </p>
       </div>
     </div>
     <div class="flex items-center space-x-2.5">
       <button onclick="runAIBerthSolver()" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow flex items-center space-x-1.5 transition">
         <i class="fa-solid fa-microchip"></i>
         <span>AI Solver Tối ưu</span>
-      </button>
-      <button onclick="validateBerthConstraints()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow flex items-center space-x-1.5 transition">
-        <i class="fa-solid fa-shield-halved"></i>
-        <span>Kiểm tra 4 ràng buộc</span>
       </button>
       <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-xs font-semibold transition">
         <i class="fa-solid fa-house mr-1"></i>Trang Chủ
@@ -1469,23 +1462,6 @@
         alert(`AI Solver hoàn tất! Điểm tối ưu: ${data.objective_score}/100. Đã tạo ${data.proposals_count} đề xuất kế hoạch trên biểu đồ Gantt (viền nét đứt xanh mòng két).`);
       } catch (err) {
         alert("Lỗi khi chạy AI Solver: " + err);
-      }
-    }
-
-    // Mục đích: Kiểm tra tự động 4 ràng buộc vật lý & an toàn theo chuẩn Doc 100
-    async function validateBerthConstraints() {
-      try {
-        const res = await fetch('/api/vessel-berth/berth-plans/validate', { method: 'POST' });
-        const result = await res.json();
-        let msg = `KẾT QUẢ KIỂM TRA 4 RÀNG BUỘC:\n\n`;
-        msg += `1. Mớn nước an toàn (Tide & Under-keel clearance >= 0.5m): ${result.is_valid ? 'ĐẠT' : 'CẢNH BÁO'}\n`;
-        msg += `2. Đệm cách ly an toàn giữa 2 tàu (Berth Separation >= 15m): ĐẠT\n`;
-        msg += `3. Giới hạn tầm với cẩu bờ (Crane Reach Limit): ĐẠT\n`;
-        msg += `4. Cửa sổ luồng hàng hải (Daylight & Tidal Window): ĐẠT\n\n`;
-        msg += result.message;
-        alert(msg);
-      } catch (err) {
-        alert("Lỗi kiểm tra ràng buộc: " + err);
       }
     }
 
