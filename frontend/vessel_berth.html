@@ -562,33 +562,6 @@
     <!-- TAB 6: WF-VB-06 GIÁM SÁT CẨU BỜ & XỬ LÝ SỰ CỐ GIÁN ĐOẠN                -->
     <!-- -------------------------------------------------------------------- -->
     <section id="tab-crane-disruption" class="hidden space-y-4">
-      <!-- Cảnh báo sự cố gián đoạn (Disruption Alert màu đỏ) -->
-      <div id="crane-disruption-alert-box" class="bg-rose-950/40 border border-rose-800/80 rounded-xl p-4 flex items-start justify-between shadow-lg transition-all">
-        <div class="flex items-start space-x-3">
-          <div id="crane-alert-icon-box" class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center text-white mt-0.5 shadow">
-            <i class="fa-solid fa-triangle-exclamation text-base"></i>
-          </div>
-          <div>
-            <div class="flex items-center space-x-2">
-              <span id="crane-alert-title" class="font-bold text-rose-300 text-xs">CẢNH BÁO SỰ CỐ GIÁN ĐOẠN KHẨN CẤP (ALT-092)</span>
-              <span id="crane-alert-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-900 text-rose-200">SEVERITY: CRITICAL</span>
-            </div>
-            <p id="crane-alert-desc" class="text-xs text-slate-300 mt-1">
-              Cẩu bờ <strong>QC-02</strong> tại Bến B2 tạm dừng hoạt động do sự cố đứt cáp điều khiển tời nâng lúc 14:15. Ước tính tiến độ tàu <strong>CMA CGM ANTOINE</strong> bị trễ <strong class="text-rose-400">+2.5 giờ</strong>, ảnh hưởng trực tiếp đến ETD xuất bến.
-            </p>
-            <div id="crane-alert-note" class="text-[11px] text-slate-400 mt-1 font-mono">Tác động: Dồn ứ 230 moves · Đề xuất: Điều phối cẩu QC-03 hỗ trợ bay phụ hoặc hoán đổi bến B3</div>
-          </div>
-        </div>
-        <div id="crane-alert-actions" class="flex items-center space-x-2">
-          <button onclick="handleCraneAlert('ACKNOWLEDGE')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
-            <i class="fa-solid fa-check-double mr-1"></i>Xác Nhận (Acknowledge)
-          </button>
-          <button onclick="handleCraneAlert('ESCALATE')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow transition">
-            <i class="fa-solid fa-arrow-up-right-dots mr-1"></i>Báo Cáo Leo Thang (Escalate)
-          </button>
-        </div>
-      </div>
-
       <!-- Bảng giám sát năng suất cẩu bờ theo Bay -->
       <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -2014,31 +1987,6 @@
           alert("Lỗi đổi trạng thái cẩu: " + (data.message || data.error));
           loadCraneOperations();
           return;
-        }
-
-        // Nếu cẩu QC-02 đổi sang WORKING, tự động cập nhật hộp cảnh báo sự cố ALT-092 sang ACKNOWLEDGED
-        if (craneId === 'QC-02' && newStatus === 'WORKING') {
-          const alertBox = document.getElementById('crane-disruption-alert-box');
-          if (alertBox && !alertBox.classList.contains('hidden')) {
-            alertBox.className = "bg-emerald-950/40 border border-emerald-800/80 rounded-xl p-4 flex items-start justify-between shadow-lg transition-all";
-            const iconBox = document.getElementById('crane-alert-icon-box');
-            if (iconBox) {
-              iconBox.className = "w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white mt-0.5 shadow";
-              iconBox.innerHTML = '<i class="fa-solid fa-circle-check text-base"></i>';
-            }
-            const titleEl = document.getElementById('crane-alert-title');
-            if (titleEl) {
-              titleEl.className = "font-bold text-emerald-300 text-xs";
-              titleEl.innerText = "ĐÃ TIẾP NHẬN & XỬ LÝ SỰ CỐ (ALT-092)";
-            }
-            const badgeEl = document.getElementById('crane-alert-badge');
-            if (badgeEl) {
-              badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-900 text-emerald-200";
-              badgeEl.innerText = "STATUS: ACKNOWLEDGED";
-            }
-            const descEl = document.getElementById('crane-alert-desc');
-            if (descEl) descEl.innerHTML = "Cẩu <strong>QC-02</strong> đã được chuyển sang trạng thái <strong>WORKING</strong>. Năng suất bốc dỡ đã phục hồi.";
-          }
         }
 
         loadCraneOperations();
