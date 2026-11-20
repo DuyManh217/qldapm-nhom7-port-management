@@ -440,17 +440,13 @@
               <span class="text-slate-400">Phiên bản chờ duyệt:</span>
               <span class="font-bold text-white font-mono">V.14 (Tuần 43/2026)</span>
             </div>
-            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
+            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
               <span class="text-slate-400">Người lập kế hoạch:</span>
-              <span class="text-sky-300 font-semibold" id="approval-creator-name">Nguyễn Văn B (ACT_BP)</span>
+              <span class="text-sky-300 font-semibold">Nguyễn Văn B (ACT_BP)</span>
             </div>
-            <div class="flex justify-between items-center p-2 rounded bg-slate-900 border border-slate-800">
+            <div class="flex justify-between p-2 rounded bg-slate-900 border border-slate-800">
               <span class="text-slate-400">Người thẩm tra & duyệt:</span>
-              <select id="approval-approver-select" class="bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-emerald-300 font-semibold outline-none focus:border-amber-500">
-                <option value="Trần Minh D (ACT_PA)">Trần Minh D (ACT_PA - Trưởng phòng) [Hợp lệ]</option>
-                <option value="Nguyễn Văn B (ACT_BP)">Nguyễn Văn B (ACT_BP - Người lập tự duyệt) [Vi phạm SoD]</option>
-                <option value="Lê Hoàng E (ACT_OM)">Lê Hoàng E (ACT_OM - Giám đốc khai thác) [Hợp lệ]</option>
-              </select>
+              <span class="text-emerald-300 font-semibold">Trần Minh D (ACT_PA - Trưởng phòng)</span>
             </div>
 
             <div>
@@ -963,6 +959,7 @@
     let currentPortCalls = [];
     let currentEditingIMO = null;
     let searchTimeout = null;
+    let currentAiProposals = null;
 
     // --------------------------------------------------------------------------
     // 1. CHUYỂN ĐỔI 8 SUB-SCREENS THEO DOC 100
@@ -1428,6 +1425,9 @@
         const container = document.getElementById('gantt-chart-container');
         if (container) container.style.minHeight = `${requiredHeight + 80}px`;
 
+        // Tự động giữ nguyên và hiển thị lại các đề xuất AI (nếu có) không bị mất khi tải dữ liệu
+        renderAiProposalsOverlay();
+
         // Đổ dữ liệu vào bảng danh sách kế hoạch
         tbody.innerHTML = calls.map(c => {
           let stColor = 'text-blue-400';
@@ -1465,9 +1465,72 @@
       }
     }
 
-    // Mục đích: Gọi API AI Solver để tối ưu hóa phân bổ cầu bến và hiển thị viền nét đứt xanh mòng két
+    // Mục đích: Vẽ lớp phủ các đề xuất AI (màu #0D9488 nét đứt) trên biểu đồ Gantt
+    function renderAiProposalsOverlay() {
+      if (!currentAiProposals || currentAiProposals.length === 0) return;
+      const layer = document.getElementById('gantt-vessels-layer');
+      if (!layer) return;
+
+      // Xóa sạch các đề xuất AI cũ trước khi vẽ mới để tránh vẽ chồng chéo
+      document.querySelectorAll('.ai-proposal-overlay').forEach(el => el.remove());
+
+      // Tính toán vị trí top cơ sở để vẽ bên dưới tất cả các làn tàu hiện tại
+      const existingBlocks = layer.querySelectorAll('.vessel-block');
+      let maxExistingBottom = 0;
+      existingBlocks.forEach(b => {
+        const topVal = parseFloat(b.style.top || 0);
+        const hVal = b.offsetHeight || 56;
+        if (topVal + hVal > maxExistingBottom) maxExistingBottom = topVal + hVal;
+      });
+      const baseTop = maxExistingBottom > 0 ? maxExistingBottom + 16 : 210;
+
+      // Thuật toán Multi-lane packing cho các đề xuất AI để tuyệt đối không đè nhau
+      const aiLanes = [];
+      const sortedProposals = [...currentAiProposals].sort((a, b) => a.recommended_start_meter - b.recommended_start_meter);
+      const proposalPlacements = sortedProposals.map(p => {
+        let assigned = 0;
+        for (let l = 0; l < aiLanes.length; l++) {
+          const hasOverlap = aiLanes[l].some(m => !(p.recommended_end_meter + 10 < m.start || p.recommended_start_meter - 10 > m.end));
+          if (!hasOverlap) {
+            assigned = l;
+            break;
+          }
+          assigned = l + 1;
+        }
+        if (assigned >= aiLanes.length) aiLanes.push([]);
+        aiLanes[assigned].push({ start: p.recommended_start_meter, end: p.recommended_end_meter });
+        return { proposal: p, lane: assigned };
+      });
+
+      // Tự động điều chỉnh kích thước Gantt container để vừa khít tất cả các đề xuất AI
+      const totalAIHeight = baseTop + (aiLanes.length * 58) + 20;
+      layer.style.minHeight = `${totalAIHeight}px`;
+      const container = document.getElementById('gantt-chart-container');
+      if (container) container.style.minHeight = `${totalAIHeight + 80}px`;
+
+      proposalPlacements.forEach(({ proposal: p, lane }) => {
+        const leftPct = (p.recommended_start_meter / 2040.0) * 100;
+        const widthPct = Math.max(((p.recommended_end_meter - p.recommended_start_meter) / 2040.0) * 100, 4);
+        const topPx = baseTop + (lane * 58);
+        const overlay = document.createElement('div');
+        overlay.style.left = `${leftPct}%`;
+        overlay.style.width = `${widthPct}%`;
+        overlay.style.top = `${topPx}px`;
+        overlay.className = "ai-proposal-overlay absolute h-12 rounded-lg border-2 border-dashed border-teal-400 bg-teal-950/80 text-teal-300 flex flex-col justify-center px-2 z-20 shadow animate-pulse backdrop-blur-sm transition-all";
+        overlay.innerHTML = `
+          <div class="text-[9px] font-black truncate">AI ĐỀ XUẤT: ${p.vessel_name}</div>
+          <div class="text-[8px] font-mono">Điểm: ${p.score} | Tiết kiệm: ${p.estimated_wait_time_saved_hours}h</div>
+        `;
+        layer.appendChild(overlay);
+      });
+    }
+
+    // Mục đích: Gọi API AI Solver để tối ưu hóa phân bổ cầu bến và lưu đề xuất vào bộ nhớ hiển thị
     async function runAIBerthSolver() {
-      switchTab('tab-berth-gantt');
+      const tabGantt = document.getElementById('tab-berth-gantt');
+      if (!tabGantt || tabGantt.classList.contains('hidden')) {
+        switchTab('tab-berth-gantt');
+      }
       try {
         const res = await fetch('/api/vessel-berth/berth-plans/ai-optimize', {
           method: 'POST',
@@ -1480,62 +1543,8 @@
           return;
         }
 
-        // Xóa sạch các đề xuất AI cũ trước khi vẽ mới để tránh vẽ chồng chéo
-        document.querySelectorAll('.ai-proposal-overlay').forEach(el => el.remove());
-
-        // Vẽ lớp phủ AI Proposals Overlay (màu #0D9488 nét đứt)
-        const layer = document.getElementById('gantt-vessels-layer');
-        if (layer && data.proposals) {
-          // Tính toán vị trí top cơ sở để vẽ bên dưới tất cả các làn tàu hiện tại
-          const existingBlocks = layer.querySelectorAll('.vessel-block');
-          let maxExistingBottom = 0;
-          existingBlocks.forEach(b => {
-            const topVal = parseFloat(b.style.top || 0);
-            const hVal = b.offsetHeight || 56;
-            if (topVal + hVal > maxExistingBottom) maxExistingBottom = topVal + hVal;
-          });
-          const baseTop = maxExistingBottom > 0 ? maxExistingBottom + 16 : 210;
-
-          // Thuật toán Multi-lane packing cho các đề xuất AI để tuyệt đối không đè nhau
-          const aiLanes = [];
-          const sortedProposals = [...data.proposals].sort((a, b) => a.recommended_start_meter - b.recommended_start_meter);
-          const proposalPlacements = sortedProposals.map(p => {
-            let assigned = 0;
-            for (let l = 0; l < aiLanes.length; l++) {
-              const hasOverlap = aiLanes[l].some(m => !(p.recommended_end_meter + 10 < m.start || p.recommended_start_meter - 10 > m.end));
-              if (!hasOverlap) {
-                assigned = l;
-                break;
-              }
-              assigned = l + 1;
-            }
-            if (assigned >= aiLanes.length) aiLanes.push([]);
-            aiLanes[assigned].push({ start: p.recommended_start_meter, end: p.recommended_end_meter });
-            return { proposal: p, lane: assigned };
-          });
-
-          // Tự động điều chỉnh kích thước Gantt container để vừa khít tất cả các đề xuất AI
-          const totalAIHeight = baseTop + (aiLanes.length * 58) + 20;
-          layer.style.minHeight = `${totalAIHeight}px`;
-          const container = document.getElementById('gantt-chart-container');
-          if (container) container.style.minHeight = `${totalAIHeight + 80}px`;
-
-          proposalPlacements.forEach(({ proposal: p, lane }) => {
-            const leftPct = (p.recommended_start_meter / 2040.0) * 100;
-            const widthPct = Math.max(((p.recommended_end_meter - p.recommended_start_meter) / 2040.0) * 100, 4);
-            const topPx = baseTop + (lane * 58);
-            const overlay = document.createElement('div');
-            overlay.style.left = `${leftPct}%`;
-            overlay.style.width = `${widthPct}%`;
-            overlay.style.top = `${topPx}px`;
-            overlay.className = "ai-proposal-overlay absolute h-12 rounded-lg border-2 border-dashed border-teal-400 bg-teal-950/80 text-teal-300 flex flex-col justify-center px-2 z-20 shadow animate-pulse backdrop-blur-sm transition-all";
-            overlay.innerHTML = `
-              <div class="text-[9px] font-black truncate">AI ĐỀ XUẤT: ${p.vessel_name}</div>
-              <div class="text-[8px] font-mono">Điểm: ${p.score} | Tiết kiệm: ${p.estimated_wait_time_saved_hours}h</div>
-            `;
-            layer.appendChild(overlay);
-          });
-        }
+        currentAiProposals = data.proposals || [];
+        renderAiProposalsOverlay();
 
         alert(`AI Solver hoàn tất! Điểm tối ưu: ${data.objective_score}/100. Đã tạo ${data.proposals_count} đề xuất kế hoạch trên biểu đồ Gantt (viền nét đứt xanh ngọc).`);
       } catch (err) {
@@ -1568,9 +1577,6 @@
     // Mục đích: Xử lý phê duyệt kế hoạch bến (APPROVE hoặc REJECT) tuân thủ SoD
     async function handleApproveBerthPlan(action) {
       const changeReason = document.getElementById('approval-change-reason').value.trim();
-      const approverSelect = document.getElementById('approval-approver-select');
-      const approver = approverSelect ? approverSelect.value : 'Trần Minh D (ACT_PA)';
-
       if (action === 'REJECT' && !changeReason) {
         alert("Bắt buộc phải nhập lý do từ chối (changeReason) để hoàn trả!");
         return;
@@ -1582,7 +1588,7 @@
           body: JSON.stringify({
             version_id: 'V.14',
             action: action,
-            approver: approver,
+            approver: 'Trần Minh D (ACT_PA)',
             change_reason: changeReason
           })
         });
@@ -1592,8 +1598,6 @@
           return;
         }
         alert(result.message);
-        loadTopKpis();
-        loadBerthGanttData();
       } catch (err) {
         alert("Lỗi phê duyệt: " + err);
       }
