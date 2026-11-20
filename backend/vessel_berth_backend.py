@@ -544,22 +544,37 @@ def get_port_calls():
 
     conn = get_db()
     cur = conn.cursor()
-    query = "SELECT * FROM tbl_port_calls WHERE 1=1"
+    query = """
+        SELECT pc.*,
+               COALESCE((SELECT SUM(ca.completed_moves) FROM tbl_crane_assignments ca WHERE ca.call_id = pc.call_id), pc.current_moves) AS dynamic_current_moves,
+               COALESCE((SELECT SUM(ca.planned_moves) FROM tbl_crane_assignments ca WHERE ca.call_id = pc.call_id), pc.total_moves) AS dynamic_total_moves
+        FROM tbl_port_calls pc
+        WHERE 1=1
+    """
     params = []
 
     if berth_id:
-        query += " AND berth_id = ?"
+        query += " AND pc.berth_id = ?"
         params.append(berth_id)
 
     if status:
-        query += " AND status = ?"
+        query += " AND pc.status = ?"
         params.append(status)
 
-    query += " ORDER BY start_meter ASC, start_time ASC"
+    query += " ORDER BY pc.start_meter ASC, pc.start_time ASC"
     cur.execute(query, params)
     rows = cur.fetchall()
     conn.close()
-    return jsonify([dict(r) for r in rows]), 200
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("dynamic_current_moves") is not None:
+            d["current_moves"] = d["dynamic_current_moves"]
+        if d.get("dynamic_total_moves") is not None and d["dynamic_total_moves"] > 0:
+            d["total_moves"] = d["dynamic_total_moves"]
+        result.append(d)
+    return jsonify(result), 200
 
 
 @vessel_berth_bp.route("/api/vessel-berth/port-calls", methods=["POST"])
@@ -816,6 +831,30 @@ def update_port_call_status(call_id):
     v_name = row["vessel_name"]
 
     cur.execute("UPDATE tbl_port_calls SET status = ? WHERE call_id = ?", (new_status, call_id))
+
+    # Đồng bộ 2 chiều sang trạng thái cẩu bờ (tbl_crane_assignments)
+    if new_status in ["CLOSED", "DEPARTED"]:
+        cur.execute("""
+            UPDATE tbl_crane_assignments
+            SET completed_moves = planned_moves, crane_status = 'STANDBY', moves_per_hour = 0.0
+            WHERE call_id = ?
+        """, (call_id,))
+        cur.execute("UPDATE tbl_port_calls SET current_moves = total_moves WHERE call_id = ?", (call_id,))
+    elif new_status == "DISRUPTION":
+        cur.execute("""
+            UPDATE tbl_crane_assignments
+            SET crane_status = 'PAUSED', moves_per_hour = 12.0
+            WHERE call_id = ? AND crane_id IN (
+                SELECT crane_id FROM tbl_crane_assignments WHERE call_id = ? ORDER BY crane_id ASC LIMIT 1
+            )
+        """, (call_id, call_id))
+    elif new_status == "OPERATING":
+        cur.execute("""
+            UPDATE tbl_crane_assignments
+            SET crane_status = 'WORKING', moves_per_hour = 28.5
+            WHERE call_id = ? AND crane_status = 'PAUSED'
+        """, (call_id,))
+
     conn.commit()
     conn.close()
 
@@ -1380,6 +1419,22 @@ def update_crane_status(crane_id):
         SET crane_status = ?, moves_per_hour = ?
         WHERE crane_id = ?
     """, (new_status, new_speed, crane_id))
+
+    # Đồng bộ 2 chiều sang bảng lượt tàu (tbl_port_calls)
+    assigned_call_id = row["call_id"]
+    if new_status == "PAUSED":
+        cur.execute("UPDATE tbl_port_calls SET status = 'DISRUPTION' WHERE call_id = ?", (assigned_call_id,))
+    elif new_status == "WORKING":
+        cur.execute("SELECT COUNT(*) FROM tbl_crane_assignments WHERE call_id = ? AND crane_id != ? AND crane_status = 'PAUSED'", (assigned_call_id, crane_id))
+        paused_count = cur.fetchone()[0]
+        if paused_count == 0:
+            cur.execute("UPDATE tbl_port_calls SET status = 'OPERATING' WHERE call_id = ? AND status = 'DISRUPTION'", (assigned_call_id,))
+    elif new_status == "STANDBY":
+        cur.execute("SELECT COUNT(*) FROM tbl_crane_assignments WHERE call_id = ? AND crane_id != ? AND crane_status != 'STANDBY'", (assigned_call_id, crane_id))
+        other_active = cur.fetchone()[0]
+        if other_active == 0:
+            cur.execute("UPDATE tbl_port_calls SET status = 'DEPARTED' WHERE call_id = ? AND status IN ('OPERATING', 'DISRUPTION')", (assigned_call_id,))
+
     conn.commit()
     conn.close()
 

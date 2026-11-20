@@ -1494,6 +1494,8 @@
         alert(result.message);
         loadPortCallAndMilestones();
         loadBerthGanttData();
+        loadCraneOperations();
+        loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
         alert("Lỗi kết nối máy chủ: " + err);
@@ -1737,6 +1739,8 @@
           loadBerthGanttData();
           return;
         }
+        loadBerthGanttData();
+        loadCraneOperations();
         loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
@@ -2038,6 +2042,7 @@
         }
 
         loadCraneOperations();
+        loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
         alert("Lỗi kết nối khi cập nhật cẩu: " + err);
@@ -2341,6 +2346,8 @@
         alert(result.message);
         loadReconcileKpiData();
         loadBerthGanttData();
+        loadCraneOperations();
+        loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
         alert("Lỗi khi đóng lượt tàu: " + err);
@@ -2379,6 +2386,8 @@
         closeReopenModal();
         alert(result.message);
         loadReconcileKpiData();
+        loadBerthGanttData();
+        loadCraneOperations();
         loadBerthGanttData();
         loadTopKpis();
       } catch (err) {
