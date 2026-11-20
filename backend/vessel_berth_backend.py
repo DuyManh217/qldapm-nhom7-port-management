@@ -1267,13 +1267,15 @@ def update_readiness_checklist(call_id, item_id):
 # WF-VB-06: GIÁM SÁT XẾP DỠ CẨU BỜ & XỬ LÝ SỰ CỐ (CRANE OPERATIONS & DISRUPTIONS)
 # ==============================================================================
 
-@vessel_berth_bp.route("/api/vessel-berth/crane-operations", methods=["GET"])
-@vessel_berth_bp.route("/crane-operations", methods=["GET"])
+@vessel_berth_bp.route("/api/vessel-berth/crane-operations", methods=["GET", "POST"])
+@vessel_berth_bp.route("/crane-operations", methods=["GET", "POST"])
 def get_crane_operations():
     """
-    Mục đích: Lấy dữ liệu giám sát thời gian thực năng suất cẩu bờ (Quay Cranes QC-01 đến QC-06),
-              tỷ lệ hoàn thành moves, tốc độ xếp dỡ moves/h, và trạng thái đồng bộ TOS Navis N4 (chu kỳ 10s).
+    Mục đích: Lấy dữ liệu hoặc phân bổ mới cẩu bờ (Quay Cranes QC-01 đến QC-08).
     """
+    if request.method == "POST":
+        return add_crane_assignment()
+
     call_id = request.args.get("call_id", "").strip()
     conn = get_db()
     cur = conn.cursor()
@@ -1391,6 +1393,85 @@ def update_crane_status(crane_id):
         "new_status": new_status,
         "moves_per_hour": new_speed,
         "message": f"Đã chuyển trạng thái cẩu bờ {crane_id} sang {new_status} ({new_speed} moves/h) thành công!"
+    }), 200
+
+
+def add_crane_assignment():
+    """
+    Mục đích: Phân bổ thêm cẩu bờ mới phục vụ xếp dỡ hầm tàu cho một lượt tàu cụ thể.
+    """
+    data = request.get_json(silent=True) or {}
+    call_id = str(data.get("call_id") or "").strip()
+    crane_id = str(data.get("crane_id") or "").strip().upper()
+    bay_no = str(data.get("bay_no") or "").strip() or "Bay 01"
+    try:
+        planned_moves = int(data.get("planned_moves") or 500)
+        completed_moves = int(data.get("completed_moves") or 0)
+        moves_per_hour = float(data.get("moves_per_hour") or 28.5)
+    except (ValueError, TypeError):
+        return jsonify({"code": "ERR_INVALID_DATA", "message": "Số moves hoặc năng suất không hợp lệ!"}), 400
+
+    crane_status = str(data.get("crane_status") or "WORKING").strip().upper()
+    if crane_status not in ["WORKING", "PAUSED", "MAINTENANCE", "STANDBY"]:
+        crane_status = "WORKING"
+
+    if not call_id:
+        return jsonify({"code": "ERR_CALL_REQUIRED", "message": "Vui lòng chọn lượt tàu phục vụ!"}), 400
+    if not crane_id:
+        return jsonify({"code": "ERR_CRANE_REQUIRED", "message": "Vui lòng chọn hoặc nhập mã cẩu bờ (VD: QC-04)!"}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM tbl_port_calls WHERE call_id = ?", (call_id,))
+    pc = cur.fetchone()
+    if not pc:
+        conn.close()
+        return jsonify({"code": "ERR_CALL_NOT_FOUND", "message": f"Không tìm thấy lượt tàu {call_id}!"}), 404
+
+    cur.execute("""
+        INSERT INTO tbl_crane_assignments (call_id, crane_id, bay_no, planned_moves, completed_moves, crane_status, moves_per_hour)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (call_id, crane_id, bay_no, planned_moves, completed_moves, crane_status, moves_per_hour))
+    assignment_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+
+    add_audit_entry("CRANE", crane_id, "ASSIGN_CRANE", "ACT_BP",
+                    f"Phân bổ cẩu {crane_id} làm hàng cho tàu {pc['vessel_name']} ({call_id}) tại {bay_no} ({planned_moves} moves)")
+
+    return jsonify({
+        "code": "SUCCESS",
+        "assignment_id": assignment_id,
+        "message": f"Phân bổ thành công cẩu bờ {crane_id} cho tàu {pc['vessel_name']} ({bay_no})!"
+    }), 201
+
+
+@vessel_berth_bp.route("/api/vessel-berth/crane-operations/<int:assignment_id>", methods=["DELETE"])
+@vessel_berth_bp.route("/crane-operations/<int:assignment_id>", methods=["DELETE"])
+def delete_crane_assignment(assignment_id):
+    """
+    Mục đích: Xóa/giải phóng một phân bổ cẩu bờ khi kết thúc hoặc hủy lệnh phân bổ.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT ca.*, pc.vessel_name FROM tbl_crane_assignments ca JOIN tbl_port_calls pc ON ca.call_id = pc.call_id WHERE ca.assignment_id = ?", (assignment_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"code": "ERR_NOT_FOUND", "message": f"Không tìm thấy phân bổ cẩu #{assignment_id}!"}), 404
+
+    crane_id = row["crane_id"]
+    vessel_name = row["vessel_name"]
+    cur.execute("DELETE FROM tbl_crane_assignments WHERE assignment_id = ?", (assignment_id,))
+    conn.commit()
+    conn.close()
+
+    add_audit_entry("CRANE", crane_id, "UNASSIGN_CRANE", "ACT_BP",
+                    f"Giải phóng/hủy phân bổ cẩu bờ {crane_id} khỏi tàu {vessel_name} (#{assignment_id})")
+
+    return jsonify({
+        "code": "SUCCESS",
+        "message": f"Đã giải phóng phân bổ cẩu {crane_id} thành công!"
     }), 200
 
 

@@ -601,7 +601,13 @@
               <i class="fa-solid fa-ship mr-1"></i>Khoang Hầm Tàu (Vessel Bay)
             </span>
           </div>
-          <span class="text-[10px] text-teal-400 font-mono">Chu kỳ đồng bộ TOS N4: 10 giây</span>
+          <div class="flex items-center space-x-3">
+            <span class="text-[10px] text-teal-400 font-mono">Chu kỳ đồng bộ TOS N4: 10 giây</span>
+            <button onclick="openAddCraneModal()" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-semibold flex items-center space-x-1.5 shadow transition">
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>Phân Bổ Cẩu Mới</span>
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-xs text-left">
@@ -614,7 +620,8 @@
                 <th class="py-2.5 px-3">ĐÃ LÀM (MOVES)</th>
                 <th class="py-2.5 px-3">TIẾN ĐỘ (%)</th>
                 <th class="py-2.5 px-3">NĂNG SUẤT HIỆN TẠI</th>
-                <th class="py-2.5 px-3 text-right">TRẠNG THÁI CẨU</th>
+                <th class="py-2.5 px-3 text-center">TRẠNG THÁI CẨU</th>
+                <th class="py-2.5 px-3 text-right">THAO TÁC</th>
               </tr>
             </thead>
             <tbody id="crane-operations-tbody" class="divide-y divide-slate-800/70 text-slate-300 font-mono">
@@ -951,6 +958,83 @@
           <button onclick="submitReopenPortCall()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold">Xác Nhận Mở Lại</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================== -->
+  <!-- MODAL PHÂN BỔ CẨU BỜ MỚI (ADD CRANE ASSIGNMENT MODAL)                       -->
+  <!-- ======================================================================== -->
+  <div id="crane-assignment-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-truck-ramp-box text-sky-400"></i>
+          <span>PHÂN BỔ CẨU BỜ MỚI (CRANE ALLOCATION)</span>
+        </h3>
+        <button type="button" onclick="closeAddCraneModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form id="crane-assignment-form" onsubmit="submitCraneAssignment(event)" class="space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Mã Cẩu Bờ (*)</label>
+            <select id="modal-crane-id" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-sky-500">
+              <option value="QC-01">QC-01 (Cầu Bến B1)</option>
+              <option value="QC-02">QC-02 (Cầu Bến B2)</option>
+              <option value="QC-03">QC-03 (Cầu Bến B2/B3)</option>
+              <option value="QC-04">QC-04 (Cầu Bến B3)</option>
+              <option value="QC-05">QC-05 (Cầu Bến B3/B4)</option>
+              <option value="QC-06">QC-06 (Cầu Bến B4)</option>
+              <option value="QC-07">QC-07 (Cầu Bến B5)</option>
+              <option value="QC-08">QC-08 (Cầu Bến B6)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Tàu Phục Vụ (*)</label>
+            <select id="modal-crane-call" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-sky-500">
+              <!-- Load động từ tbl_port_calls -->
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Khoang Hầm Tàu (Vessel Bay) (*)</label>
+            <input type="text" id="modal-crane-bay" required placeholder="VD: Bay 16, Bay 24..." value="Bay 16"
+                   class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-sky-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Trạng Thái Cẩu Ban Đầu</label>
+            <select id="modal-crane-status" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-sky-500">
+              <option value="WORKING">WORKING (Đang bốc dỡ)</option>
+              <option value="STANDBY">STANDBY (Chờ tàu/hàng)</option>
+              <option value="PAUSED">PAUSED (Tạm dừng/sự cố)</option>
+              <option value="MAINTENANCE">MAINTENANCE (Bảo dưỡng)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Kế Hoạch Moves (*)</label>
+            <input type="number" id="modal-crane-planned" required min="1" max="5000" value="450"
+                   class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-sky-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Năng Suất Thiết Kế (moves/h)</label>
+            <input type="number" step="0.1" id="modal-crane-speed" required min="0" max="60" value="28.5"
+                   class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono focus:border-sky-500">
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeAddCraneModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-semibold transition">Hủy bỏ</button>
+          <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded font-bold transition shadow flex items-center space-x-1.5">
+            <i class="fa-solid fa-check mr-1"></i>
+            <span>Xác Nhận Phân Bổ</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1883,7 +1967,7 @@
                 </div>
               </td>
               <td class="py-2.5 px-3 font-mono text-amber-400">${c.moves_per_hour} moves/h</td>
-              <td class="py-2.5 px-3 text-right">
+              <td class="py-2.5 px-3 text-center">
                 <select onchange="changeCraneStatus('${c.crane_id}', this.value)"
                         class="bg-slate-950 border rounded px-2 py-1 text-xs font-bold outline-none cursor-pointer focus:border-teal-400 transition ${
                           c.crane_status === 'WORKING' ? 'text-emerald-300 border-emerald-600/70 bg-emerald-950/40' :
@@ -1897,6 +1981,13 @@
                   <option value="MAINTENANCE" ${c.crane_status === 'MAINTENANCE' ? 'selected' : ''} class="text-amber-300 bg-slate-900">MAINTENANCE (Bảo trì)</option>
                   <option value="STANDBY" ${c.crane_status === 'STANDBY' ? 'selected' : ''} class="text-sky-300 bg-slate-900">STANDBY (Chờ tàu)</option>
                 </select>
+              </td>
+              <td class="py-2.5 px-3 text-right">
+                <button onclick="deleteCraneAssignment(${c.assignment_id}, '${c.crane_id}')"
+                        class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700/60 hover:border-rose-700/80 transition"
+                        title="Hủy/xóa phân bổ cẩu ${c.crane_id}">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
+                </button>
               </td>
             </tr>
           `;
@@ -2059,6 +2150,86 @@
         location.reload();
       } catch (e) {
         location.reload();
+      }
+    }
+
+    // Mục đích: Mở modal phân bổ cẩu bờ mới và tải danh sách tàu cập bến
+    async function openAddCraneModal() {
+      try {
+        const res = await fetch('/api/vessel-berth/port-calls');
+        const calls = await res.json();
+        const select = document.getElementById('modal-crane-call');
+        if (select) {
+          select.innerHTML = calls.map(pc => `
+            <option value="${pc.call_id}">${pc.vessel_name} (${pc.call_id} - ${pc.berth_id})</option>
+          `).join('');
+        }
+        document.getElementById('crane-assignment-modal').classList.remove('hidden');
+      } catch (err) {
+        console.error("Lỗi nạp danh sách tàu cho cẩu:", err);
+        document.getElementById('crane-assignment-modal').classList.remove('hidden');
+      }
+    }
+
+    // Mục đích: Đóng modal phân bổ cẩu bờ
+    function closeAddCraneModal() {
+      const modal = document.getElementById('crane-assignment-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Mục đích: Gửi yêu cầu phân bổ cẩu bờ mới về máy chủ backend
+    async function submitCraneAssignment(event) {
+      event.preventDefault();
+      const call_id = document.getElementById('modal-crane-call').value;
+      const crane_id = document.getElementById('modal-crane-id').value;
+      const bay_no = document.getElementById('modal-crane-bay').value.trim();
+      const planned_moves = parseInt(document.getElementById('modal-crane-planned').value);
+      const moves_per_hour = parseFloat(document.getElementById('modal-crane-speed').value);
+      const crane_status = document.getElementById('modal-crane-status').value;
+
+      try {
+        const res = await fetch('/api/vessel-berth/crane-operations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            call_id,
+            crane_id,
+            bay_no,
+            planned_moves,
+            completed_moves: 0,
+            moves_per_hour,
+            crane_status
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert("Lỗi phân bổ cẩu: " + (data.message || data.error));
+          return;
+        }
+        alert(data.message || `Đã phân bổ cẩu ${crane_id} thành công!`);
+        closeAddCraneModal();
+        loadCraneOperations();
+      } catch (err) {
+        alert("Lỗi kết nối máy chủ khi phân bổ cẩu: " + err);
+      }
+    }
+
+    // Mục đích: Hủy/Xóa một phân bổ cẩu bờ
+    async function deleteCraneAssignment(assignmentId, craneId) {
+      if (!confirm(`Bạn có chắc chắn muốn hủy phân bổ cẩu ${craneId} này không?`)) return;
+      try {
+        const res = await fetch(`/api/vessel-berth/crane-operations/${assignmentId}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert("Lỗi xóa phân bổ cẩu: " + (data.message || data.error));
+          return;
+        }
+        alert(data.message);
+        loadCraneOperations();
+      } catch (err) {
+        alert("Lỗi khi xóa phân bổ cẩu: " + err);
       }
     }
 
