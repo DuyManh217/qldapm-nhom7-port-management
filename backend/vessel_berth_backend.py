@@ -843,16 +843,14 @@ def update_port_call_status(call_id):
     elif new_status == "DISRUPTION":
         cur.execute("""
             UPDATE tbl_crane_assignments
-            SET crane_status = 'PAUSED', moves_per_hour = 12.0
-            WHERE call_id = ? AND crane_id IN (
-                SELECT crane_id FROM tbl_crane_assignments WHERE call_id = ? ORDER BY crane_id ASC LIMIT 1
-            )
-        """, (call_id, call_id))
+            SET crane_status = 'PAUSED', moves_per_hour = 0.0
+            WHERE call_id = ?
+        """, (call_id,))
     elif new_status == "OPERATING":
         cur.execute("""
             UPDATE tbl_crane_assignments
             SET crane_status = 'WORKING', moves_per_hour = 28.5
-            WHERE call_id = ? AND crane_status = 'PAUSED'
+            WHERE call_id = ? AND crane_status IN ('PAUSED', 'MAINTENANCE')
         """, (call_id,))
 
     conn.commit()
@@ -1318,6 +1316,17 @@ def get_crane_operations():
     call_id = request.args.get("call_id", "").strip()
     conn = get_db()
     cur = conn.cursor()
+
+    # Đảm bảo đồng bộ tuyệt đối giữa trạng thái lượt tàu và cẩu bờ:
+    # Nếu lượt tàu đang DISRUPTION, toàn bộ cẩu của tàu đó không được ở trạng thái WORKING
+    cur.execute("""
+        UPDATE tbl_crane_assignments
+        SET crane_status = 'PAUSED', moves_per_hour = 0.0
+        WHERE call_id IN (SELECT call_id FROM tbl_port_calls WHERE status = 'DISRUPTION')
+          AND crane_status = 'WORKING'
+    """)
+    conn.commit()
+
     query = """
         SELECT ca.*, pc.vessel_name, pc.berth_id
         FROM tbl_crane_assignments ca
@@ -1356,13 +1365,27 @@ def crane_alert_action():
             SET crane_status = 'WORKING', moves_per_hour = 24.5
             WHERE crane_id = 'QC-02'
         """)
+        # Đồng bộ sang bảng lượt tàu: nếu tất cả cẩu của tàu này đã WORKING thì phục hồi về OPERATING
+        cur.execute("SELECT call_id FROM tbl_crane_assignments WHERE crane_id = 'QC-02'")
+        r_call = cur.fetchone()
+        if r_call:
+            assigned_call = r_call["call_id"]
+            cur.execute("SELECT COUNT(*) FROM tbl_crane_assignments WHERE call_id = ? AND crane_status IN ('PAUSED', 'MAINTENANCE')", (assigned_call,))
+            paused_count = cur.fetchone()[0]
+            if paused_count == 0:
+                cur.execute("UPDATE tbl_port_calls SET status = 'OPERATING' WHERE call_id = ? AND status = 'DISRUPTION'", (assigned_call,))
         conn.commit()
     elif action_type == "RESET":
         cur.execute("""
             UPDATE tbl_crane_assignments 
-            SET crane_status = 'PAUSED', moves_per_hour = 12.0
+            SET crane_status = 'PAUSED', moves_per_hour = 0.0
             WHERE crane_id = 'QC-02'
         """)
+        cur.execute("SELECT call_id FROM tbl_crane_assignments WHERE crane_id = 'QC-02'")
+        r_call = cur.fetchone()
+        if r_call:
+            assigned_call = r_call["call_id"]
+            cur.execute("UPDATE tbl_port_calls SET status = 'DISRUPTION' WHERE call_id = ?", (assigned_call,))
         conn.commit()
     conn.close()
 
@@ -1422,10 +1445,10 @@ def update_crane_status(crane_id):
 
     # Đồng bộ 2 chiều sang bảng lượt tàu (tbl_port_calls)
     assigned_call_id = row["call_id"]
-    if new_status == "PAUSED":
+    if new_status in ["PAUSED", "MAINTENANCE"]:
         cur.execute("UPDATE tbl_port_calls SET status = 'DISRUPTION' WHERE call_id = ?", (assigned_call_id,))
     elif new_status == "WORKING":
-        cur.execute("SELECT COUNT(*) FROM tbl_crane_assignments WHERE call_id = ? AND crane_id != ? AND crane_status = 'PAUSED'", (assigned_call_id, crane_id))
+        cur.execute("SELECT COUNT(*) FROM tbl_crane_assignments WHERE call_id = ? AND crane_id != ? AND crane_status IN ('PAUSED', 'MAINTENANCE')", (assigned_call_id, crane_id))
         paused_count = cur.fetchone()[0]
         if paused_count == 0:
             cur.execute("UPDATE tbl_port_calls SET status = 'OPERATING' WHERE call_id = ? AND status = 'DISRUPTION'", (assigned_call_id,))
