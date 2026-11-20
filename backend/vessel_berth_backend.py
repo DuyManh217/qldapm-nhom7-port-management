@@ -1316,17 +1316,6 @@ def get_crane_operations():
     call_id = request.args.get("call_id", "").strip()
     conn = get_db()
     cur = conn.cursor()
-
-    # Đảm bảo đồng bộ tuyệt đối giữa trạng thái lượt tàu và cẩu bờ:
-    # Nếu lượt tàu đang DISRUPTION, toàn bộ cẩu của tàu đó không được ở trạng thái WORKING
-    cur.execute("""
-        UPDATE tbl_crane_assignments
-        SET crane_status = 'PAUSED', moves_per_hour = 0.0
-        WHERE call_id IN (SELECT call_id FROM tbl_port_calls WHERE status = 'DISRUPTION')
-          AND crane_status = 'WORKING'
-    """)
-    conn.commit()
-
     query = """
         SELECT ca.*, pc.vessel_name, pc.berth_id
         FROM tbl_crane_assignments ca

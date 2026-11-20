@@ -574,7 +574,7 @@
               <span id="crane-alert-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-900 text-rose-200">SEVERITY: CRITICAL</span>
             </div>
             <p id="crane-alert-desc" class="text-xs text-slate-300 mt-1">
-              Cẩu bờ <strong>QC-02</strong> tại Bến B2 tạm dừng hoạt động do sự cố đứt cáp điều khiển tời nâng lúc 14:15. Ước tính tiến độ tàu <strong>EVER GIVEN</strong> bị trễ <strong class="text-rose-400">+2.5 giờ</strong>, ảnh hưởng trực tiếp đến ETD xuất bến.
+              Cẩu bờ <strong>QC-02</strong> tại Bến B2 tạm dừng hoạt động do sự cố đứt cáp điều khiển tời nâng lúc 14:15. Ước tính tiến độ tàu <strong>CMA CGM ANTOINE</strong> bị trễ <strong class="text-rose-400">+2.5 giờ</strong>, ảnh hưởng trực tiếp đến ETD xuất bến.
             </p>
             <div id="crane-alert-note" class="text-[11px] text-slate-400 mt-1 font-mono">Tác động: Dồn ứ 230 moves · Đề xuất: Điều phối cẩu QC-03 hỗ trợ bay phụ hoặc hoán đổi bến B3</div>
           </div>
@@ -2134,6 +2134,8 @@
         }
 
         loadCraneOperations();
+        loadBerthGanttData();
+        loadTopKpis();
         alert(result.message);
       } catch (err) {
         alert("Lỗi xử lý sự cố: " + err);
