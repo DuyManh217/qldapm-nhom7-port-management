@@ -54,10 +54,6 @@
       </div>
     </div>
     <div class="flex items-center space-x-2.5">
-      <button onclick="runAIBerthSolver()" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow flex items-center space-x-1.5 transition">
-        <i class="fa-solid fa-microchip"></i>
-        <span>AI Solver Tối ưu</span>
-      </button>
       <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-xs font-semibold transition">
         <i class="fa-solid fa-house mr-1"></i>Trang Chủ
       </a>
@@ -353,6 +349,10 @@
         </div>
         <div class="flex items-center space-x-2">
           <span class="text-xs text-slate-400 font-mono">Phiên bản: <strong class="text-amber-400">V.14 (Draft)</strong></span>
+          <button onclick="runAIBerthSolver()" class="px-2.5 py-1 bg-teal-600 hover:bg-teal-500 text-white text-xs rounded font-bold shadow flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-microchip"></i>
+            <span>AI Solver Tối ưu</span>
+          </button>
           <button onclick="saveBerthPlanDraft()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded font-semibold transition">
             <i class="fa-solid fa-floppy-disk mr-1"></i>Lưu Dự Thảo
           </button>
@@ -1463,6 +1463,7 @@
 
     // Mục đích: Gọi API AI Solver để tối ưu hóa phân bổ cầu bến và hiển thị viền nét đứt xanh mòng két
     async function runAIBerthSolver() {
+      switchTab('tab-berth-gantt');
       try {
         const res = await fetch('/api/vessel-berth/berth-plans/ai-optimize', {
           method: 'POST',
