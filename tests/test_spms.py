@@ -108,6 +108,19 @@ class SPMSTestSuite(unittest.TestCase):
         data = response.get_json()
         self.assertEqual(data["code"], "ERR_BERTH_COLLISION_DETECTED")
 
+    def test_09b_port_call_invalid_schedule_etd_before_eta(self):
+        payload = {
+            "imo": "9110023",
+            "berth_id": "B1",
+            "start_meter": 60,
+            "start_time": "2026-11-25 14:00",
+            "end_time": "2026-11-24 10:00"
+        }
+        response = self.client.post("/api/v1/port-calls", json=payload)
+        self.assertEqual(response.status_code, 400)
+        data = response.get_json()
+        self.assertEqual(data["code"], "ERR_INVALID_SCHEDULE")
+
     def test_10_ai_optimize_berth(self):
         response = self.client.post("/api/v1/ai/optimize-berth")
         self.assertEqual(response.status_code, 200)

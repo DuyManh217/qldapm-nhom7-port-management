@@ -635,13 +635,34 @@ def create_port_call():
         }), 400
 
     # 5. Tính toán khung giờ
-    start_time = str(data.get("start_time") or datetime.now().strftime("%Y-%m-%d %H:%M")).strip()
+    start_time = str(data.get("start_time") or data.get("eta") or datetime.now().strftime("%Y-%m-%d %H:%M")).strip()
     if "end_time" in data and data["end_time"]:
         end_time = str(data["end_time"]).strip()
+    elif "etd" in data and data["etd"]:
+        end_time = str(data["etd"]).strip()
     else:
         duration = float(data.get("duration_hours", 12))
         t_start = parse_dt(start_time) or datetime.now()
         end_time = (t_start + timedelta(hours=duration)).strftime("%Y-%m-%d %H:%M")
+
+    # Kiểm tra tính hợp lệ của mốc thời gian ETA/ETD (ETD phải diễn ra sau ETA)
+    t_start = parse_dt(start_time)
+    t_end = parse_dt(end_time)
+    if not t_start or not t_end:
+        conn.close()
+        return jsonify({
+            "code": "ERR_INVALID_DATETIME",
+            "error": "Định dạng thời gian ETA/ETD không hợp lệ!",
+            "message": "Định dạng thời gian ETA/ETD không hợp lệ!"
+        }), 400
+
+    if t_end <= t_start:
+        conn.close()
+        return jsonify({
+            "code": "ERR_INVALID_SCHEDULE",
+            "error": "Thời gian rời cảng (ETD) phải diễn ra sau thời gian cập cảng (ETA)!",
+            "message": "Thời gian rời cảng (ETD) phải diễn ra sau thời gian cập cảng (ETA)!"
+        }), 400
 
     # 6. Kiểm tra xung đột không - thời gian 2D
     conflicts = check_berth_collision(berth_id, start_meter, end_meter, start_time, end_time)

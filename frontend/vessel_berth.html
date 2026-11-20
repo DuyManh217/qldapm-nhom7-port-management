@@ -192,7 +192,7 @@
             <tr>
               <th class="py-2.5 px-3">IMO / MMSI</th>
               <th class="py-2.5 px-3">TÊN TÀU & HÔ HIỆU</th>
-              <th class="py-2.5 px-3">QUỐC TỊCH CỜ</th>
+              <th class="py-2.5 px-3">QUỐC TỊCH</th>
               <th class="py-2.5 px-3">LOA × BEAM</th>
               <th class="py-2.5 px-3">MỚN NƯỚC (MAX)</th>
               <th class="py-2.5 px-3">DWT / TEU</th>
@@ -890,7 +890,7 @@
             <input type="number" id="modal-vessel-teu" value="2800" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white font-mono">
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Quốc Tịch Cờ</label>
+            <label class="block text-slate-400 mb-1">Quốc Tịch</label>
             <input type="text" id="modal-vessel-flag" value="Panama" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-white">
           </div>
         </div>
@@ -1309,6 +1309,15 @@
       const startMeter = parseFloat(document.getElementById('pc-start-meter').value);
       const startTime = document.getElementById('pc-start-time').value.trim();
       const endTime = document.getElementById('pc-end-time').value.trim();
+
+      if (startTime && endTime) {
+        const sTime = new Date(startTime.replace(' ', 'T'));
+        const eTime = new Date(endTime.replace(' ', 'T'));
+        if (eTime <= sTime) {
+          alert("Lỗi đăng ký lượt tàu: Thời gian rời cảng (ETD) phải diễn ra sau thời gian cập cảng (ETA)!");
+          return;
+        }
+      }
 
       const payload = {
         call_id: callId,
