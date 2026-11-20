@@ -28,6 +28,8 @@ db.init_db()
 # Templates from frontend folder
 frontend_dir = os.path.abspath(os.path.join(backend_dir, "..", "frontend"))
 app = Flask(__name__, template_folder=frontend_dir)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
 
 # Register modules
 app.register_blueprint(vessel_berth_bp)
