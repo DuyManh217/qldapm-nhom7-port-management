@@ -1,7 +1,6 @@
 # ==============================================================================
 # TỔNG CÔNG TY TÂN CẢNG SÀI GÒN (SNP) - HỆ THỐNG ĐIỀU HÀNH KHAI THÁC CẢNG SPMS
-# NGƯỜI THỰC HIỆN: Đào Văn Sơn - B23DCCN961
-# VAI TRÒ: Backend Engineer / Lập trình viên Backend
+# KIẾN TRÚC KỸ THUẬT: Đào Duy Mạnh - Technical Lead / Solution Architect
 # MODULE: Khởi chạy Máy chủ Demo Full Stack SPMS (Web UI & REST APIs)
 # ==============================================================================
 
@@ -13,12 +12,14 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.join(current_dir, "backend")
 sys.path.insert(0, backend_dir)
 
+import db
 import app
 
 if __name__ == "__main__":
     port = 8088
     print("=" * 65)
     print(f"  SPMS FULL STACK SERVER RUNNING: http://localhost:{port}")
+    print(f"  - Cơ sở Dữ liệu Kết nối     : {db.get_db_info()}")
     print("  - Module 1 (Vessel & Berth)  : http://localhost:8088/vessel")
     print("  - Module 2 (Yard & Container): http://localhost:8088/yard")
     print("  - Portal Hợp Nhất           : http://localhost:8088/")

@@ -8,19 +8,178 @@
 import sqlite3
 import os
 import json
+import re
 from datetime import datetime
+
+# ==============================================================================
+# POSTGRESQL & SQLITE MULTI-ENGINE DATABASE CONNECTOR
+# Thiết kế kỹ thuật: Đào Duy Mạnh - Technical Lead / Solution Architect
+# Hỗ trợ kết nối máy chủ PostgreSQL 17 (Database: spms_db @ 127.0.0.1:5432)
+# Tự động chuyển đổi mượt mà sang SQLite nếu máy chủ PostgreSQL chưa khả dụng.
+# ==============================================================================
+try:
+    import psycopg2
+    from psycopg2.extras import DictCursor
+    HAS_PSYCOPG2 = True
+except ImportError:
+    HAS_PSYCOPG2 = False
+
+PG_HOST = os.environ.get("SPMS_PG_HOST", "127.0.0.1")
+PG_PORT = int(os.environ.get("SPMS_PG_PORT", "5432"))
+PG_USER = os.environ.get("SPMS_PG_USER", "postgres")
+PG_PASSWORD = os.environ.get("SPMS_PG_PASSWORD", "")
+PG_DBNAME = os.environ.get("SPMS_PG_DBNAME", "spms_db")
+SPMS_FORCE_SQLITE = os.environ.get("SPMS_FORCE_SQLITE", "0") == "1"
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spms.db")
 
-# ------------------------------------------------------------------------------
-# Function: get_db
-# Mục đích sử dụng: Khởi tạo kết nối SQLite với Row factory và kích hoạt Foreign Keys PRAGMA.
-# ------------------------------------------------------------------------------
+class PostgresCursorWrapper:
+    def __init__(self, raw_cursor, conn_wrapper=None):
+        self._cur = raw_cursor
+        self._conn_wrapper = conn_wrapper
+
+    def _convert_sql(self, sql):
+        parts = re.split(r"('[^']*')", sql)
+        for i in range(0, len(parts), 2):
+            parts[i] = parts[i].replace("?", "%s")
+        sql_converted = "".join(parts)
+
+        if "AUTOINCREMENT" in sql_converted.upper():
+            sql_converted = re.sub(r"INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT", "SERIAL PRIMARY KEY", sql_converted, flags=re.IGNORECASE)
+
+        if "ALTER TABLE" in sql_converted.upper() and "ADD COLUMN" in sql_converted.upper():
+            sql_converted = re.sub(r"ADD\s+COLUMN\s+(?!IF\s+NOT\s+EXISTS)", "ADD COLUMN IF NOT EXISTS ", sql_converted, flags=re.IGNORECASE)
+
+        if "INSERT OR REPLACE INTO" in sql_converted.upper():
+            sql_converted = re.sub(r"INSERT\s+OR\s+REPLACE\s+INTO\s+(\w+)", r"INSERT INTO \1", sql_converted, flags=re.IGNORECASE)
+            if "ON CONFLICT" not in sql_converted.upper():
+                sql_converted += " ON CONFLICT DO NOTHING"
+
+        if "INSERT OR IGNORE INTO" in sql_converted.upper():
+            sql_converted = re.sub(r"INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)", r"INSERT INTO \1", sql_converted, flags=re.IGNORECASE)
+            if "ON CONFLICT" not in sql_converted.upper():
+                sql_converted += " ON CONFLICT DO NOTHING"
+
+        if "GROUP_CONCAT" in sql_converted.upper():
+            sql_converted = re.sub(
+                r"GROUP_CONCAT\s*\(\s*([^,]+?)\s*,\s*([^)]+?)\s*\)",
+                r"STRING_AGG(\1::text, \2)",
+                sql_converted,
+                flags=re.IGNORECASE
+            )
+            sql_converted = re.sub(
+                r"GROUP_CONCAT\s*\(\s*([^)]+?)\s*\)",
+                r"STRING_AGG(\1::text, ',')",
+                sql_converted,
+                flags=re.IGNORECASE
+            )
+
+        return sql_converted
+
+    def execute(self, sql, params=None):
+        if sql.strip().upper().startswith("PRAGMA"):
+            return self
+
+        sql_converted = self._convert_sql(sql)
+        if params is not None:
+            self._cur.execute(sql_converted, params)
+        else:
+            self._cur.execute(sql_converted)
+        return self
+
+    def executemany(self, sql, param_seq):
+        sql_converted = self._convert_sql(sql)
+        self._cur.executemany(sql_converted, param_seq)
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    def fetchmany(self, size=None):
+        return self._cur.fetchmany(size) if size else self._cur.fetchmany()
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    @property
+    def lastrowid(self):
+        return getattr(self._cur, 'lastrowid', None)
+
+    @property
+    def description(self):
+        return self._cur.description
+
+    def close(self):
+        self._cur.close()
+
+class PostgresConnectionWrapper:
+    def __init__(self, raw_conn):
+        self._conn = raw_conn
+        self._conn.autocommit = True
+        self.row_factory = None
+
+    def cursor(self):
+        return PostgresCursorWrapper(self._conn.cursor(cursor_factory=DictCursor), self)
+
+    def commit(self):
+        try:
+            if not self._conn.autocommit:
+                self._conn.commit()
+        except Exception:
+            pass
+
+    def rollback(self):
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
+
+    def close(self):
+        self._conn.close()
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
 def get_db():
+    if not SPMS_FORCE_SQLITE and HAS_PSYCOPG2:
+        try:
+            raw_conn = psycopg2.connect(
+                host=PG_HOST,
+                port=PG_PORT,
+                user=PG_USER,
+                password=PG_PASSWORD,
+                dbname=PG_DBNAME,
+                connect_timeout=3
+            )
+            return PostgresConnectionWrapper(raw_conn)
+        except Exception:
+            pass
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+def get_db_engine():
+    conn = get_db()
+    if isinstance(conn, PostgresConnectionWrapper):
+        conn.close()
+        return "POSTGRESQL"
+    conn.close()
+    return "SQLITE"
+
+def get_db_info():
+    engine = get_db_engine()
+    if engine == "POSTGRESQL":
+        return f"PostgreSQL 17 (Database: {PG_DBNAME} @ {PG_HOST}:{PG_PORT})"
+    return f"SQLite Embedded ({DB_PATH})"
+
 
 # ------------------------------------------------------------------------------
 # Function: init_db
@@ -180,7 +339,7 @@ def init_db():
     ]:
         try:
             cur.execute(f"ALTER TABLE tbl_vessels ADD COLUMN {col} {ctype};")
-        except sqlite3.OperationalError:
+        except (sqlite3.OperationalError, Exception):
             pass
 
     for col, ctype in [
@@ -191,7 +350,7 @@ def init_db():
     ]:
         try:
             cur.execute(f"ALTER TABLE tbl_port_calls ADD COLUMN {col} {ctype};")
-        except sqlite3.OperationalError:
+        except (sqlite3.OperationalError, Exception):
             pass
 
     # 4. Bảng Ô bãi (tbl_yard_slots)
