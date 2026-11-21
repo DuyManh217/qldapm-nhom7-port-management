@@ -44,10 +44,26 @@ spms_app/
 
 ### 1. Cài đặt thư viện phụ thuộc:
 ```bash
-pip install flask
+pip install -r requirements.txt
 ```
 
-### 2. Chạy Server:
+### 2. Kết nối Cơ sở dữ liệu (PostgreSQL Local + SQLite Fallback):
+Hệ thống mặc định ưu tiên kết nối **PostgreSQL** chạy tại máy cá nhân (local). Nếu máy chưa bật PostgreSQL, hệ thống sẽ tự động chuyển về dùng **SQLite** (`backend/spms.db`).
+
+Để chạy với **PostgreSQL Local**:
+1. Cài đặt PostgreSQL và tạo một database rỗng tên `spms_db` (ví dụ: `createdb -U postgres spms_db` hoặc tạo trong pgAdmin 4).
+2. Nếu tài khoản `postgres` trên máy có đặt mật khẩu (hoặc khác cấu hình mặc định `127.0.0.1:5432`, user `postgres`, db `spms_db`), thiết lập biến môi trường trước khi chạy:
+   ```powershell
+   $env:SPMS_PG_HOST="127.0.0.1"
+   $env:SPMS_PG_PORT="5432"
+   $env:SPMS_PG_USER="postgres"
+   $env:SPMS_PG_PASSWORD="mat_khau_cua_ban"
+   $env:SPMS_PG_DBNAME="spms_db"
+   ```
+   *(Nếu muốn ép chạy bằng SQLite: `$env:SPMS_FORCE_SQLITE="1"`)*
+3. Khi khởi chạy server lần đầu, hệ thống tự động tạo đầy đủ các bảng và nạp dữ liệu mẫu vào PostgreSQL.
+
+### 3. Chạy Server:
 Bạn có thể khởi động server bằng một trong hai cách:
 ```powershell
 python run_demo.py
