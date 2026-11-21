@@ -40,6 +40,8 @@ app.register_blueprint(swagger_bp)
 # ------------------------------------------------------------------------------
 # Function: home
 # Mục đích sử dụng: Phục vụ trang chủ giao diện web tích hợp (Portal) của hệ thống SPMS.
+# Tham số đầu vào: Không
+# Giá trị trả về: Giao diện HTML trang chủ (index.html)
 # ------------------------------------------------------------------------------
 @app.route("/")
 def home():
@@ -48,6 +50,8 @@ def home():
 # ------------------------------------------------------------------------------
 # Function: vessel_page
 # Mục đích sử dụng: Phục vụ giao diện điều hành phân hệ Tàu & Cầu bến (Vessel & Berth).
+# Tham số đầu vào: Không
+# Giá trị trả về: Giao diện HTML phân hệ Tàu & Cầu bến (vessel_berth.html)
 # ------------------------------------------------------------------------------
 @app.route("/vessel")
 def vessel_page():
@@ -56,6 +60,8 @@ def vessel_page():
 # ------------------------------------------------------------------------------
 # Function: yard_page
 # Mục đích sử dụng: Phục vụ giao diện điều hành phân hệ Bãi Container (Yard & Container).
+# Tham số đầu vào: Không
+# Giá trị trả về: Giao diện HTML phân hệ Bãi Container (yard_container.html)
 # ------------------------------------------------------------------------------
 @app.route("/yard")
 def yard_page():
@@ -64,6 +70,8 @@ def yard_page():
 # ------------------------------------------------------------------------------
 # Function: db_info_endpoint
 # Mục đích sử dụng: Trả về thông tin cơ sở dữ liệu đang kết nối (PostgreSQL / SQLite).
+# Tham số đầu vào: Không
+# Giá trị trả về: JSON {status, engine, database_info}
 # ------------------------------------------------------------------------------
 @app.route("/api/system/db-info", methods=["GET"])
 def db_info_endpoint():
@@ -75,7 +83,9 @@ def db_info_endpoint():
 
 # ------------------------------------------------------------------------------
 # Function: run_tests
-# Mục đích sử dụng: API kích hoạt chạy toàn bộ bộ kiểm thử tự động (46 test cases) thời gian thực và trả về kết quả JSON.
+# Mục đích sử dụng: API kích hoạt chạy toàn bộ bộ kiểm thử tự động (47 test cases) thời gian thực và trả về kết quả JSON.
+# Tham số đầu vào: Không (POST request)
+# Giá trị trả về: JSON danh sách kết quả test (total, passed, results[])
 # ------------------------------------------------------------------------------
 # REAL DYNAMIC AUTOMATED TESTS ENDPOINT
 @app.route("/api/v1/tests/run-all", methods=["POST"])
@@ -86,7 +96,12 @@ def run_tests():
     
     results = []
     
-    # Flatten test suite to extract individual test instances
+    # --------------------------------------------------------------------------
+    # Function: extract_tests
+    # Mục đích sử dụng: Đệ quy giải nén cấu trúc cây unittest.TestSuite thành danh sách phẳng các TestCase độc lập.
+    # Tham số đầu vào: suite_or_case (TestSuite hoặc TestCase)
+    # Giá trị trả về: Danh sách các đối tượng TestCase cụ thể
+    # --------------------------------------------------------------------------
     def extract_tests(suite_or_case):
         tests = []
         if isinstance(suite_or_case, unittest.TestSuite):

@@ -163,7 +163,13 @@ def jwt_required(optional: bool = False):
     Decorator kiểm tra JWT Bearer token trong Header Authorization của request.
     Nếu hợp lệ, lưu thông tin payload vào biến toàn cục flask.g.current_user.
     """
+    # --------------------------------------------------------------------------
+    # Function: decorator
+    # --------------------------------------------------------------------------
     def decorator(f):
+        # ----------------------------------------------------------------------
+        # Function: wrapper
+        # ----------------------------------------------------------------------
         @wraps(f)
         def wrapper(*args, **kwargs):
             auth_header = request.headers.get("Authorization", "")
@@ -210,7 +216,13 @@ def role_required(*allowed_roles):
     PORT_ADMIN hoặc ROLE_ADMIN được bypass toàn quyền.
     Trả về 403 Forbidden nếu không đủ vai trò.
     """
+    # --------------------------------------------------------------------------
+    # Function: decorator
+    # --------------------------------------------------------------------------
     def decorator(f):
+        # ----------------------------------------------------------------------
+        # Function: wrapper
+        # ----------------------------------------------------------------------
         @wraps(f)
         def wrapper(*args, **kwargs):
             current_user = getattr(g, "current_user", None)
@@ -252,7 +264,13 @@ def role_required(*allowed_roles):
 # ------------------------------------------------------------------------------
 def permission_required(permission: str):
     """Decorator kiểm tra quyền hạn chi tiết của người dùng."""
+    # --------------------------------------------------------------------------
+    # Function: decorator
+    # --------------------------------------------------------------------------
     def decorator(f):
+        # ----------------------------------------------------------------------
+        # Function: wrapper
+        # ----------------------------------------------------------------------
         @wraps(f)
         def wrapper(*args, **kwargs):
             current_user = getattr(g, "current_user", None)

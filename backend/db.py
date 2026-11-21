@@ -43,10 +43,32 @@ SPMS_FORCE_SQLITE = os.environ.get("SPMS_FORCE_SQLITE", "0") == "1"
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spms.db")
 
 class PostgresCursorWrapper:
+    """
+    Lớp bao bọc (Wrapper) cho con trỏ truy vấn PostgreSQL (psycopg2 cursor).
+    Cung cấp giao diện tương thích hoàn toàn với con trỏ của SQLite3 (sqlite3.Cursor).
+    """
+
+    # --------------------------------------------------------------------------
+    # Function: __init__
+    # Mục đích sử dụng: Khởi tạo con trỏ wrapper với raw_cursor của psycopg2 và tham chiếu connection.
+    # Tham số đầu vào: raw_cursor (psycopg2.extensions.cursor), conn_wrapper (PostgresConnectionWrapper)
+    # Giá trị trả về: Đối tượng PostgresCursorWrapper
+    # --------------------------------------------------------------------------
     def __init__(self, raw_cursor, conn_wrapper=None):
         self._cur = raw_cursor
         self._conn_wrapper = conn_wrapper
 
+    # --------------------------------------------------------------------------
+    # Function: _convert_sql
+    # Mục đích sử dụng: Chuyển đổi cú pháp truy vấn SQLite sang chuẩn PostgreSQL:
+    #                   - Thay thế placeholder '?' thành '%s' (bỏ qua ký tự trong chuỗi literal).
+    #                   - Chuyển INTEGER PRIMARY KEY AUTOINCREMENT thành SERIAL PRIMARY KEY.
+    #                   - Chuyển ADD COLUMN thành ADD COLUMN IF NOT EXISTS.
+    #                   - Chuyển INSERT OR REPLACE / INSERT OR IGNORE sang INSERT INTO ... ON CONFLICT DO NOTHING.
+    #                   - Chuyển hàm GROUP_CONCAT() sang STRING_AGG() tương thích PostgreSQL.
+    # Tham số đầu vào: sql (str - câu lệnh SQL gốc)
+    # Giá trị trả về: sql_converted (str - câu lệnh SQL đã chuyển đổi tương thích PostgreSQL)
+    # --------------------------------------------------------------------------
     def _convert_sql(self, sql):
         parts = re.split(r"('[^']*')", sql)
         for i in range(0, len(parts), 2):
@@ -85,6 +107,12 @@ class PostgresCursorWrapper:
 
         return sql_converted
 
+    # --------------------------------------------------------------------------
+    # Function: execute
+    # Mục đích sử dụng: Thực thi một câu lệnh SQL với tham số an toàn (Parameter Binding chống SQL Injection).
+    # Tham số đầu vào: sql (str), params (tuple/list/dict hoặc None)
+    # Giá trị trả về: self (đối tượng PostgresCursorWrapper)
+    # --------------------------------------------------------------------------
     def execute(self, sql, params=None):
         if sql.strip().upper().startswith("PRAGMA"):
             return self
@@ -96,44 +124,109 @@ class PostgresCursorWrapper:
             self._cur.execute(sql_converted)
         return self
 
+    # --------------------------------------------------------------------------
+    # Function: executemany
+    # Mục đích sử dụng: Thực thi câu lệnh SQL lặp lại với danh sách các bộ tham số (Batch Insert / Bulk Update).
+    # Tham số đầu vào: sql (str), param_seq (iterable sequence of parameters)
+    # Giá trị trả về: self (đối tượng PostgresCursorWrapper)
+    # --------------------------------------------------------------------------
     def executemany(self, sql, param_seq):
         sql_converted = self._convert_sql(sql)
         self._cur.executemany(sql_converted, param_seq)
         return self
 
+    # --------------------------------------------------------------------------
+    # Function: fetchone
+    # Mục đích sử dụng: Trích xuất bản ghi kết quả đầu tiên từ tập kết quả truy vấn.
+    # Tham số đầu vào: Không
+    # Giá trị trả về: DictRow / Row đơn lẻ hoặc None nếu không có dữ liệu
+    # --------------------------------------------------------------------------
     def fetchone(self):
         return self._cur.fetchone()
 
+    # --------------------------------------------------------------------------
+    # Function: fetchall
+    # Mục đích sử dụng: Trích xuất toàn bộ các bản ghi kết quả từ tập kết quả truy vấn.
+    # Tham số đầu vào: Không
+    # Giá trị trả về: List[DictRow] danh sách tất cả các dòng kết quả
+    # --------------------------------------------------------------------------
     def fetchall(self):
         return self._cur.fetchall()
 
+    # --------------------------------------------------------------------------
+    # Function: fetchmany
+    # Mục đích sử dụng: Trích xuất một số lượng bản ghi chỉ định từ tập kết quả.
+    # Tham số đầu vào: size (int - số lượng dòng cần lấy, mặc định theo cursor arraysize)
+    # Giá trị trả về: List[DictRow] các dòng kết quả
+    # --------------------------------------------------------------------------
     def fetchmany(self, size=None):
         return self._cur.fetchmany(size) if size else self._cur.fetchmany()
 
+    # --------------------------------------------------------------------------
+    # Function: rowcount (Property)
+    # Mục đích sử dụng: Trả về số lượng bản ghi bị ảnh hưởng bởi thao tác INSERT/UPDATE/DELETE.
+    # --------------------------------------------------------------------------
     @property
     def rowcount(self):
         return self._cur.rowcount
 
+    # --------------------------------------------------------------------------
+    # Function: lastrowid (Property)
+    # Mục đích sử dụng: Trả về ID tự sinh của bản ghi vừa chèn (nếu có).
+    # --------------------------------------------------------------------------
     @property
     def lastrowid(self):
         return getattr(self._cur, 'lastrowid', None)
 
+    # --------------------------------------------------------------------------
+    # Function: description (Property)
+    # Mục đích sử dụng: Trả về metadata mô tả danh sách các cột trong kết quả truy vấn.
+    # --------------------------------------------------------------------------
     @property
     def description(self):
         return self._cur.description
 
+    # --------------------------------------------------------------------------
+    # Function: close
+    # Mục đích sử dụng: Đóng con trỏ truy vấn PostgreSQL để giải phóng tài nguyên.
+    # Tham số đầu vào: Không
+    # Giá trị trả về: Không
+    # --------------------------------------------------------------------------
     def close(self):
         self._cur.close()
 
 class PostgresConnectionWrapper:
+    """
+    Lớp bao bọc (Wrapper) cho kết nối PostgreSQL (psycopg2 connection).
+    Cung cấp giao diện tương thích hoàn toàn với sqlite3.Connection.
+    """
+
+    # --------------------------------------------------------------------------
+    # Function: __init__
+    # Mục đích sử dụng: Khởi tạo wrapper với raw_conn của psycopg2, cấu hình autocommit để tự động ghi nhận giao dịch.
+    # Tham số đầu vào: raw_conn (psycopg2 connection)
+    # Giá trị trả về: Đối tượng PostgresConnectionWrapper
+    # --------------------------------------------------------------------------
     def __init__(self, raw_conn):
         self._conn = raw_conn
         self._conn.autocommit = True
         self.row_factory = None
 
+    # --------------------------------------------------------------------------
+    # Function: cursor
+    # Mục đích sử dụng: Khởi tạo con trỏ PostgresCursorWrapper sử dụng DictCursor để truy cập cột qua tên (dict key) hoặc chỉ số.
+    # Tham số đầu vào: Không
+    # Giá trị trả về: PostgresCursorWrapper
+    # --------------------------------------------------------------------------
     def cursor(self):
         return PostgresCursorWrapper(self._conn.cursor(cursor_factory=DictCursor), self)
 
+    # --------------------------------------------------------------------------
+    # Function: commit
+    # Mục đích sử dụng: Xác nhận giao dịch hiện hành (nếu autocommit=False).
+    # Tham số đầu vào: Không
+    # Giá trị trả về: Không
+    # --------------------------------------------------------------------------
     def commit(self):
         try:
             if not self._conn.autocommit:
@@ -141,20 +234,47 @@ class PostgresConnectionWrapper:
         except Exception:
             pass
 
+    # --------------------------------------------------------------------------
+    # Function: rollback
+    # Mục đích sử dụng: Hủy bỏ các thao tác trong giao dịch hiện hành khi gặp lỗi ngoại lệ.
+    # Tham số đầu vào: Không
+    # Giá trị trả về: Không
+    # --------------------------------------------------------------------------
     def rollback(self):
         try:
             self._conn.rollback()
         except Exception:
             pass
 
+    # --------------------------------------------------------------------------
+    # Function: close
+    # Mục đích sử dụng: Đóng kết nối vật lý tới máy chủ cơ sở dữ liệu PostgreSQL.
+    # Tham số đầu vào: Không
+    # Giá trị trả về: Không
+    # --------------------------------------------------------------------------
     def close(self):
         self._conn.close()
 
+    # --------------------------------------------------------------------------
+    # Function: execute
+    # Mục đích sử dụng: Tiện ích thực thi trực tiếp câu lệnh SQL từ connection tương tự cú pháp sqlite3.Connection.execute().
+    # Tham số đầu vào: sql (str), params (tuple/list hoặc None)
+    # Giá trị trả về: PostgresCursorWrapper đã thực thi câu lệnh
+    # --------------------------------------------------------------------------
     def execute(self, sql, params=None):
         cur = self.cursor()
         cur.execute(sql, params)
         return cur
 
+# ------------------------------------------------------------------------------
+# Function: get_db
+# Mục đích sử dụng: Cung cấp kết nối CSDL hiện hành cho toàn bộ các dịch vụ backend:
+#                   - Ưu tiên tự động kết nối máy chủ PostgreSQL 18 (Database: spms_db @ 127.0.0.1:5432).
+#                   - Tự động chuyển đổi mượt mà (Graceful Fallback) sang SQLite3 nội bộ nếu PostgreSQL không khả dụng.
+#                   - Bật chế độ PRAGMA foreign_keys = ON đối với SQLite để bảo toàn tính toàn vẹn quan hệ.
+# Tham số đầu vào: Không
+# Giá trị trả về: Đối tượng kết nối CSDL (PostgresConnectionWrapper hoặc sqlite3.Connection)
+# ------------------------------------------------------------------------------
 def get_db():
     if not SPMS_FORCE_SQLITE and HAS_PSYCOPG2:
         try:
@@ -175,6 +295,12 @@ def get_db():
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
+# ------------------------------------------------------------------------------
+# Function: get_db_engine
+# Mục đích sử dụng: Kiểm tra và xác định loại động cơ cơ sở dữ liệu đang hoạt động thời gian thực.
+# Tham số đầu vào: Không
+# Giá trị trả về: Chuỗi định danh động cơ ("POSTGRESQL" hoặc "SQLITE")
+# ------------------------------------------------------------------------------
 def get_db_engine():
     conn = get_db()
     if isinstance(conn, PostgresConnectionWrapper):
@@ -183,6 +309,12 @@ def get_db_engine():
     conn.close()
     return "SQLITE"
 
+# ------------------------------------------------------------------------------
+# Function: get_db_info
+# Mục đích sử dụng: Trả về chuỗi thông tin chi tiết về phiên bản máy chủ CSDL, host, port và tên database đang kết nối.
+# Tham số đầu vào: Không
+# Giá trị trả về: Chuỗi thông tin CSDL (str)
+# ------------------------------------------------------------------------------
 def get_db_info():
     engine = get_db_engine()
     if engine == "POSTGRESQL":

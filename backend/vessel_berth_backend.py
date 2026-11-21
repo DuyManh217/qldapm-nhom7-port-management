@@ -33,6 +33,10 @@ vessel_berth_bp = Blueprint("vessel_berth", __name__)
 # HÀM BỔ TRỢ & KIỂM TRA RÀNG BUỘC (HELPER FUNCTIONS)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: parse_dt
+# Mục đích sử dụng: Mục đích: Phân tích chuỗi thời gian linh hoạt (hỗ trợ nhiều định dạng ISO, YYYY-MM-DD HH:MM).
+# ------------------------------------------------------------------------------
 def parse_dt(dt_str):
     """
     Mục đích: Phân tích chuỗi thời gian linh hoạt (hỗ trợ nhiều định dạng ISO, YYYY-MM-DD HH:MM).
@@ -48,6 +52,10 @@ def parse_dt(dt_str):
     return None
 
 
+# ------------------------------------------------------------------------------
+# Function: check_berth_collision
+# Mục đích sử dụng: Mục đích: Kiểm tra xung đột không gian (chiều dài cầu bến) và thời gian (giờ cập/rời) giữa các lượt tàu theo ma trận 2D Spatio-Temporal, ngăn chặn đâm va cầu bến.
+# ------------------------------------------------------------------------------
 def check_berth_collision(berth_id, start_meter, end_meter, start_time_str, end_time_str, buffer_meters=0.0, exclude_call_id=None):
     """
     Mục đích: Kiểm tra xung đột không gian (chiều dài cầu bến) và thời gian (giờ cập/rời) 
@@ -104,6 +112,10 @@ def check_berth_collision(berth_id, start_meter, end_meter, start_time_str, end_
     return conflicts
 
 
+# ------------------------------------------------------------------------------
+# Function: add_audit_entry
+# Mục đích sử dụng: Mục đích: Ghi log vết kiểm toán bất biến (Immutable Audit Trail) phục vụ bảo mật, truy vết trách nhiệm SoD (Segregation of Duties) theo chuẩn ISO 27001 (WF-VB-08).
+# ------------------------------------------------------------------------------
 def add_audit_entry(entity_type, entity_id, action, performed_by, change_summary, previous_state=None, new_state=None):
     """
     Mục đích: Ghi log vết kiểm toán bất biến (Immutable Audit Trail) phục vụ bảo mật,
@@ -134,6 +146,11 @@ def add_audit_entry(entity_type, entity_id, action, performed_by, change_summary
 # WF-VB-01: HỒ SƠ TÀU (VESSEL MASTER REGISTRY & SEARCH)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: get_vessels
+# Mục đích sử dụng: Mục đích: Lấy danh sách hồ sơ tàu biển, hỗ trợ tìm kiếm đa tiêu chí (IMO, MMSI, tên tàu) và bộ lọc trạng thái hoạt động (ACTIVE, INACTIVE, BLACKLISTED) phục vụ màn hình WF-VB-01.
+# Endpoint: "/api/vessel-berth/vessels", methods=["GET"], "/api/v1/vessels", methods=["GET"], "/vessels", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/vessels", methods=["GET"])
 @vessel_berth_bp.route("/api/v1/vessels", methods=["GET"])
 @vessel_berth_bp.route("/vessels", methods=["GET"])
@@ -174,6 +191,11 @@ def get_vessels():
     return jsonify(res), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: check_duplicate_vessel
+# Mục đích sử dụng: Mục đích: Kiểm tra trùng lặp IMO (chuẩn 7 chữ số) và MMSI (9 chữ số) trước khi thêm mới hoặc sửa, ngăn chặn tạo dữ liệu rác hoặc trùng thực thể tàu trong hệ thống.
+# Endpoint: "/api/vessel-berth/vessels/check-duplicate", methods=["GET"], "/vessels/check-duplicate", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/vessels/check-duplicate", methods=["GET"])
 @vessel_berth_bp.route("/vessels/check-duplicate", methods=["GET"])
 def check_duplicate_vessel():
@@ -228,6 +250,11 @@ def check_duplicate_vessel():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: add_vessel
+# Mục đích sử dụng: Mục đích: Thêm mới hồ sơ kỹ thuật tàu biển vào CSDL SPMS kèm kiểm tra tính hợp lệ về chiều dài LOA, mớn nước, trọng tải DWT, sức chở TEU và ghi nhận audit log.
+# Endpoint: "/api/vessel-berth/vessels", methods=["POST"], "/api/v1/vessels", methods=["POST"], "/vessels", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/vessels", methods=["POST"])
 @vessel_berth_bp.route("/api/v1/vessels", methods=["POST"])
 @vessel_berth_bp.route("/vessels", methods=["POST"])
@@ -343,6 +370,11 @@ def add_vessel():
     }), 201
 
 
+# ------------------------------------------------------------------------------
+# Function: update_vessel
+# Mục đích sử dụng: Mục đích: Cập nhật thông số kỹ thuật của hồ sơ tàu biển, hỗ trợ cơ chế khóa mớn nước và bảo vệ an toàn luồng lạch theo chuẩn IMO và Lloyd's Register.
+# Endpoint: "/api/vessel-berth/vessels/<imo>", methods=["PUT"], "/api/v1/vessels/<imo>", methods=["PUT"], "/vessels/<imo>", methods=["PUT"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/vessels/<imo>", methods=["PUT"])
 @vessel_berth_bp.route("/api/v1/vessels/<imo>", methods=["PUT"])
 @vessel_berth_bp.route("/vessels/<imo>", methods=["PUT"])
@@ -456,6 +488,11 @@ def update_vessel(imo):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: delete_vessel
+# Mục đích sử dụng: Mục đích: Xóa hồ sơ tàu biển (chỉ được xóa khi tàu không có chuyến cập cảng đang hoạt động).
+# Endpoint: "/api/vessel-berth/vessels/<imo>", methods=["DELETE"], "/api/v1/vessels/<imo>", methods=["DELETE"], "/vessels/<imo>", methods=["DELETE"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/vessels/<imo>", methods=["DELETE"])
 @vessel_berth_bp.route("/api/v1/vessels/<imo>", methods=["DELETE"])
 @vessel_berth_bp.route("/vessels/<imo>", methods=["DELETE"])
@@ -505,6 +542,11 @@ def delete_vessel(imo):
 # WF-VB-02: ĐIỀU ĐỘ & KẾ HOẠCH CẦU BẾN (BERTH SCHEDULING & 2D GANTT)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: get_berths
+# Mục đích sử dụng: Mục đích: Lấy danh sách phân đoạn cầu bến (B1 đến B6) kèm tọa độ mét bến, độ sâu luồng hàng hải, phục vụ trực quan hóa 2D Gantt Spatio-Temporal trên màn hình WF-VB-02 và WF-VB-03.
+# Endpoint: "/api/vessel-berth/berths", methods=["GET"], "/api/v1/berths", methods=["GET"], "/berths", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/berths", methods=["GET"])
 @vessel_berth_bp.route("/api/v1/berths", methods=["GET"])
 @vessel_berth_bp.route("/berths", methods=["GET"])
@@ -532,6 +574,11 @@ def get_berths():
     return jsonify(res), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: get_port_calls
+# Mục đích sử dụng: Mục đích: Lấy danh sách các lượt tàu cập bến, hỗ trợ lọc theo bến (berth_id) và trạng thái (status).
+# Endpoint: "/api/vessel-berth/port-calls", methods=["GET"], "/api/v1/port-calls", methods=["GET"], "/port-calls", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls", methods=["GET"])
 @vessel_berth_bp.route("/api/v1/port-calls", methods=["GET"])
 @vessel_berth_bp.route("/port-calls", methods=["GET"])
@@ -577,6 +624,11 @@ def get_port_calls():
     return jsonify(result), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: create_port_call
+# Mục đích sử dụng: Mục đích: Tiếp nhận và xác thực yêu cầu đăng ký lượt cập cảng (Port Call Registration), tính toán không gian start_meter -> end_meter = start_meter + LOA, kiểm tra mớn nước (draft) và va chạm không gian - thời gian 2D Spatio-Temporal.
+# Endpoint: "/api/vessel-berth/port-calls", methods=["POST"], "/api/v1/port-calls", methods=["POST"], "/port-calls", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls", methods=["POST"])
 @vessel_berth_bp.route("/api/v1/port-calls", methods=["POST"])
 @vessel_berth_bp.route("/port-calls", methods=["POST"])
@@ -760,6 +812,11 @@ def create_port_call():
     }), 201
 
 
+# ------------------------------------------------------------------------------
+# Function: delete_port_call
+# Mục đích sử dụng: Mục đích: Hủy chuyến hoặc giải phóng cầu bến cho tàu rời cảng theo mã chuyến (call_id).
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>", methods=["DELETE"], "/api/v1/port-calls/<call_id>", methods=["DELETE"], "/port-calls/<call_id>", methods=["DELETE"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>", methods=["DELETE"])
 @vessel_berth_bp.route("/api/v1/port-calls/<call_id>", methods=["DELETE"])
 @vessel_berth_bp.route("/port-calls/<call_id>", methods=["DELETE"])
@@ -798,6 +855,11 @@ def delete_port_call(call_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: update_port_call_status
+# Mục đích sử dụng: Mục đích: Cập nhật trạng thái lượt tàu trong chu trình khai thác (PLANNED, CONFIRMED, APPROVED, MOORED, OPERATING, DISRUPTION, DEPARTED, CLOSED).
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/status", methods=["PUT", "POST"], "/api/v1/port-calls/<call_id>/status", methods=["PUT", "POST"], "/port-calls/<call_id>/status", methods=["PUT", "POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/status", methods=["PUT", "POST"])
 @vessel_berth_bp.route("/api/v1/port-calls/<call_id>/status", methods=["PUT", "POST"])
 @vessel_berth_bp.route("/port-calls/<call_id>/status", methods=["PUT", "POST"])
@@ -869,6 +931,11 @@ def update_port_call_status(call_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: cancel_port_call
+# Mục đích sử dụng: Mục đích: Hủy lượt tàu (Cancel Port Call) có ghi nhận lý do thay đổi/hủy chuyến, giải phóng cầu bến an toàn phục vụ phân bổ lượt tàu khác.
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/cancel", methods=["POST"], "/port-calls/<call_id>/cancel", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/cancel", methods=["POST"])
 @vessel_berth_bp.route("/port-calls/<call_id>/cancel", methods=["POST"])
 def cancel_port_call(call_id):
@@ -893,6 +960,11 @@ def cancel_port_call(call_id):
 # WF-VB-03: KIỂM ĐỊNH XUNG ĐỘT & AI TỐI ƯU CẦU BẾN (AI BERTH OPTIMIZER)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: get_berth_plan_version
+# Mục đích sử dụng: Mục đích: Lấy thông tin phiên bản kế hoạch cầu bến hiện hành (Draft, Pending Approval, hay Published).
+# Endpoint: "/api/vessel-berth/berth-plans/version", methods=["GET"], "/berth-plans/version", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/berth-plans/version", methods=["GET"])
 @vessel_berth_bp.route("/berth-plans/version", methods=["GET"])
 def get_berth_plan_version():
@@ -907,6 +979,11 @@ def get_berth_plan_version():
     return jsonify([dict(r) for r in rows]), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: validate_berth_plans
+# Mục đích sử dụng: Mục đích: Kiểm tra tự động 4 ràng buộc vật lý & an toàn theo chuẩn Doc 100 (WF-VB-03): 1. Ràng buộc Mớn nước an toàn (Tide & Draft Buffer >= 0.5m) 2. Đệm cách ly an toàn giữa 2 tàu liên tiếp (Berth Separation Buffer >= 15m) 3. Giới hạn tầm với cẩu bờ (Crane Reach Limit) 4. Cửa sổ luồng hàng hải (Maritime Tide / Daylight Navigation Window)
+# Endpoint: "/api/vessel-berth/berth-plans/validate", methods=["POST"], "/api/v1/berth-plans/validate", methods=["POST"], "/berth-plans/validate", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/berth-plans/validate", methods=["POST"])
 @vessel_berth_bp.route("/api/v1/berth-plans/validate", methods=["POST"])
 @vessel_berth_bp.route("/berth-plans/validate", methods=["POST"])
@@ -973,6 +1050,11 @@ def validate_berth_plans():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: ai_optimize_berth
+# Mục đích sử dụng: Mục đích: Mô phỏng động cơ AI giải bài toán phân bổ cầu bến (BAP - Berth Allocation Problem) bằng giải thuật di truyền mô phỏng (Heuristic GA v2.6), tối ưu hóa thời gian chờ và lượng phát thải.
+# Endpoint: "/api/vessel-berth/berth-plans/ai-optimize", methods=["POST"], "/api/v1/ai/optimize-berth", methods=["POST"], "/berth-plans/ai-optimize", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/berth-plans/ai-optimize", methods=["POST"])
 @vessel_berth_bp.route("/api/v1/ai/optimize-berth", methods=["POST"])
 @vessel_berth_bp.route("/berth-plans/ai-optimize", methods=["POST"])
@@ -1056,6 +1138,11 @@ def ai_optimize_berth():
 # WF-VB-04: PHÊ DUYỆT & CÔNG BỐ KẾ HOẠCH BẾN (SOD & PUBLISH WORKFLOW)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: approve_berth_plan
+# Mục đích sử dụng: Mục đích: Phê duyệt kế hoạch bến tuân thủ nguyên tắc phân tách quyền hạn SoD (Segregation of Duties). Người phê duyệt (ACT_PA - Trưởng phòng Điều độ) phải khác người lập kế hoạch (ACT_BP). Nếu từ chối (REJECT), bắt buộc phải nhập lý do thay đổi (changeReason).
+# Endpoint: "/api/vessel-berth/berth-plans/approve", methods=["POST"], "/berth-plans/approve", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/berth-plans/approve", methods=["POST"])
 @vessel_berth_bp.route("/berth-plans/approve", methods=["POST"])
 def approve_berth_plan():
@@ -1104,6 +1191,11 @@ def approve_berth_plan():
     return jsonify({"message": f"Kế hoạch {version_id} đã được chuyển sang trạng thái {new_status}", "version_id": version_id, "status": new_status}), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: publish_berth_plan
+# Mục đích sử dụng: Mục đích: Công bố chính thức và khóa phiên bản kế hoạch bến (Publish & Lock Plan - WF-VB-04). Đồng bộ dữ liệu sang TOS Navis N4, Cổng thông tin hãng tàu ePort, và Trạm hoa tiêu.
+# Endpoint: "/api/vessel-berth/berth-plans/publish", methods=["POST"], "/berth-plans/publish", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/berth-plans/publish", methods=["POST"])
 @vessel_berth_bp.route("/berth-plans/publish", methods=["POST"])
 def publish_berth_plan():
@@ -1146,6 +1238,11 @@ def publish_berth_plan():
 # WF-VB-05: ĐIỀU PHỐI HÀNG HẢI & DỊCH VỤ CẢNG (NAUTICAL SERVICES & CHECKLIST)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: get_port_call_milestones
+# Mục đích sử dụng: Mục đích: Lấy toàn bộ mốc sự kiện hàng hải tiêu chuẩn (POB, First Line, All Fast, Gangway Down, Commenced, Completed, Cast Off) của một lượt tàu phục vụ bảng đối chiếu và điều phối luồng lạch.
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/milestones", methods=["GET"], "/port-calls/<call_id>/milestones", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/milestones", methods=["GET"])
 @vessel_berth_bp.route("/port-calls/<call_id>/milestones", methods=["GET"])
 def get_port_call_milestones(call_id):
@@ -1161,6 +1258,11 @@ def get_port_call_milestones(call_id):
     return jsonify([dict(r) for r in rows]), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: update_port_call_milestone
+# Mục đích sử dụng: Mục đích: Cập nhật giờ xác nhận (Confirmed Time) hoặc giờ thực tế (Actual Time) cho mốc sự kiện hàng hải, đồng bộ trạng thái lượt tàu khi tàu đã All Fast hoặc Cast Off.
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/milestones/<milestone_code>", methods=["PUT"], "/port-calls/<call_id>/milestones/<milestone_code>", methods=["PUT"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/milestones/<milestone_code>", methods=["PUT"])
 @vessel_berth_bp.route("/port-calls/<call_id>/milestones/<milestone_code>", methods=["PUT"])
 def update_port_call_milestone(call_id, milestone_code):
@@ -1199,6 +1301,11 @@ def update_port_call_milestone(call_id, milestone_code):
     return jsonify({"message": f"Cập nhật mốc sự kiện {milestone_code} thành công"}), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: get_nautical_services
+# Mục đích sử dụng: Mục đích: Lấy danh sách 3 nhóm dịch vụ hàng hải cốt lõi: Hoa tiêu (Pilot), Tàu lai (Tugboat), và Buộc dây (Mooring).
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/nautical-services", methods=["GET"], "/port-calls/<call_id>/nautical-services", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/nautical-services", methods=["GET"])
 @vessel_berth_bp.route("/port-calls/<call_id>/nautical-services", methods=["GET"])
 def get_nautical_services(call_id):
@@ -1213,6 +1320,11 @@ def get_nautical_services(call_id):
     return jsonify([dict(r) for r in rows]), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: update_nautical_service
+# Mục đích sử dụng: Mục đích: Cập nhật trạng thái xác nhận dịch vụ hàng hải (CONFIRMED, REQUESTED, IN_PROGRESS, COMPLETED).
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/nautical-services/<int:service_id>", methods=["PUT"], "/port-calls/<call_id>/nautical-services/<int:service_id>", methods=["PUT"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/nautical-services/<int:service_id>", methods=["PUT"])
 @vessel_berth_bp.route("/port-calls/<call_id>/nautical-services/<int:service_id>", methods=["PUT"])
 def update_nautical_service(call_id, service_id):
@@ -1253,6 +1365,11 @@ def update_nautical_service(call_id, service_id):
     return jsonify({"message": f"Cập nhật dịch vụ hàng hải {service_id} thành công"}), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: get_readiness_checklist
+# Mục đích sử dụng: Mục đích: Lấy danh sách 5 bước kiểm tra sẵn sàng cập bến (Readiness Checklist) của lượt tàu.
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/readiness-checklist", methods=["GET"], "/port-calls/<call_id>/readiness-checklist", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/readiness-checklist", methods=["GET"])
 @vessel_berth_bp.route("/port-calls/<call_id>/readiness-checklist", methods=["GET"])
 def get_readiness_checklist(call_id):
@@ -1273,6 +1390,11 @@ def get_readiness_checklist(call_id):
     return jsonify(rows), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: update_readiness_checklist
+# Mục đích sử dụng: Mục đích: Cập nhật trạng thái kiểm tra sẵn sàng cập bến 5 bước (Readiness Checklist: PASS / PENDING / REJECTED).
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/readiness-checklist/<int:item_id>", methods=["PUT"], "/port-calls/<call_id>/readiness-checklist/<int:item_id>", methods=["PUT"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/readiness-checklist/<int:item_id>", methods=["PUT"])
 @vessel_berth_bp.route("/port-calls/<call_id>/readiness-checklist/<int:item_id>", methods=["PUT"])
 def update_readiness_checklist(call_id, item_id):
@@ -1304,6 +1426,11 @@ def update_readiness_checklist(call_id, item_id):
 # WF-VB-06: GIÁM SÁT XẾP DỠ CẨU BỜ & XỬ LÝ SỰ CỐ (CRANE OPERATIONS & DISRUPTIONS)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: get_crane_operations
+# Mục đích sử dụng: Mục đích: Lấy dữ liệu hoặc phân bổ mới cẩu bờ (Quay Cranes QC-01 đến QC-08).
+# Endpoint: "/api/vessel-berth/crane-operations", methods=["GET", "POST"], "/crane-operations", methods=["GET", "POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/crane-operations", methods=["GET", "POST"])
 @vessel_berth_bp.route("/crane-operations", methods=["GET", "POST"])
 def get_crane_operations():
@@ -1334,6 +1461,11 @@ def get_crane_operations():
     return jsonify([dict(r) for r in rows]), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: crane_alert_action
+# Mục đích sử dụng: Mục đích: Tiếp nhận hành động xử lý cảnh báo sự cố gián đoạn (Disruption Alert ALT-092 cẩu dừng hoạt động, delay ETD) với các lựa chọn: Xác nhận đã biết (Acknowledge), Báo cáo leo thang (Escalate), hoặc Điều phối cẩu thay thế.
+# Endpoint: "/api/vessel-berth/crane-operations/alert-action", methods=["POST"], "/crane-operations/alert-action", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/crane-operations/alert-action", methods=["POST"])
 @vessel_berth_bp.route("/crane-operations/alert-action", methods=["POST"])
 def crane_alert_action():
@@ -1387,6 +1519,11 @@ def crane_alert_action():
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: update_crane_status
+# Mục đích sử dụng: Mục đích: Cập nhật trạng thái hoạt động của cẩu bờ (WORKING, PAUSED, MAINTENANCE, STANDBY) và tự động điều chỉnh năng suất moves/giờ tương ứng.
+# Endpoint: "/api/vessel-berth/crane-operations/<crane_id>/status", methods=["PUT", "POST"], "/crane-operations/<crane_id>/status", methods=["PUT", "POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/crane-operations/<crane_id>/status", methods=["PUT", "POST"])
 @vessel_berth_bp.route("/crane-operations/<crane_id>/status", methods=["PUT", "POST"])
 def update_crane_status(crane_id):
@@ -1463,6 +1600,10 @@ def update_crane_status(crane_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: add_crane_assignment
+# Mục đích sử dụng: Mục đích: Phân bổ thêm cẩu bờ mới phục vụ xếp dỡ hầm tàu cho một lượt tàu cụ thể.
+# ------------------------------------------------------------------------------
 def add_crane_assignment():
     """
     Mục đích: Phân bổ thêm cẩu bờ mới phục vụ xếp dỡ hầm tàu cho một lượt tàu cụ thể.
@@ -1540,6 +1681,11 @@ def add_crane_assignment():
     }), 201
 
 
+# ------------------------------------------------------------------------------
+# Function: delete_crane_assignment
+# Mục đích sử dụng: Mục đích: Xóa/giải phóng một phân bổ cẩu bờ khi kết thúc hoặc hủy lệnh phân bổ.
+# Endpoint: "/api/vessel-berth/crane-operations/<int:assignment_id>", methods=["DELETE"], "/crane-operations/<int:assignment_id>", methods=["DELETE"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/crane-operations/<int:assignment_id>", methods=["DELETE"])
 @vessel_berth_bp.route("/crane-operations/<int:assignment_id>", methods=["DELETE"])
 def delete_crane_assignment(assignment_id):
@@ -1573,6 +1719,11 @@ def delete_crane_assignment(assignment_id):
 # WF-VB-07: ĐỐI SOÁT LƯỢT TÀU & BÁO CÁO KPI (RECONCILIATION & KPIS)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: reconcile_close_port_call
+# Mục đích sử dụng: Mục đích: Đối soát hoàn tất lượt tàu (Port Call Reconciliation & Closure), chốt chuỗi mốc sự kiện All Fast -> ATD, kiểm tra tổng moves hoàn thành và chuyển trạng thái sang CLOSED để đẩy qua Module Billing.
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/reconcile-close", methods=["POST"], "/port-calls/<call_id>/reconcile-close", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/reconcile-close", methods=["POST"])
 @vessel_berth_bp.route("/port-calls/<call_id>/reconcile-close", methods=["POST"])
 def reconcile_close_port_call(call_id):
@@ -1631,6 +1782,11 @@ def reconcile_close_port_call(call_id):
     }), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: reopen_port_call
+# Mục đích sử dụng: Mục đích: Mở lại lượt tàu đã đóng (Reopen Port Call), yêu cầu nhập lý do hồi tố (Retroactive Change Reason) và ghi nhận vào vết kiểm toán phục vụ thanh tra.
+# Endpoint: "/api/vessel-berth/port-calls/<call_id>/reopen", methods=["POST"], "/port-calls/<call_id>/reopen", methods=["POST"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/port-calls/<call_id>/reopen", methods=["POST"])
 @vessel_berth_bp.route("/port-calls/<call_id>/reopen", methods=["POST"])
 def reopen_port_call(call_id):
@@ -1662,6 +1818,11 @@ def reopen_port_call(call_id):
     return jsonify({"message": f"Đã mở lại lượt tàu {call_id}", "status": "OPERATING"}), 200
 
 
+# ------------------------------------------------------------------------------
+# Function: get_vessel_kpis
+# Mục đích sử dụng: Mục đích: Trích xuất các chỉ số hiệu suất khai thác cảng cốt lõi (Vessel & Berth KPIs): 1. Thời gian quay vòng tàu trung bình (Average Turnaround Time: 14.2h) 2. Thời gian chờ cầu bến trung bình (Average Berth Waiting Time: 0.8h) 3. Năng suất khai thác cầu bến cẩu bờ (Quay Crane Moves/hour: 28.5) 4. Hệ số sử dụng chiều dài cầu bến (Berth Occupancy / Utilization: 68.4%)
+# Endpoint: "/api/vessel-berth/kpis", methods=["GET"], "/api/v1/vessel/kpi", methods=["GET"], "/kpis", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/kpis", methods=["GET"])
 @vessel_berth_bp.route("/api/v1/vessel/kpi", methods=["GET"])
 @vessel_berth_bp.route("/kpis", methods=["GET"])
@@ -1724,6 +1885,11 @@ def get_vessel_kpis():
 # WF-VB-08: QUẢN TRỊ & AUDIT TRAIL (AUDIT LOGS & INTEGRATION MONITORING)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
+# Function: get_vessel_audit_entries
+# Mục đích sử dụng: Mục đích: Truy vấn nhật ký kiểm toán bất biến (Immutable Audit Trail) phục vụ giám sát quản trị, lọc theo loại đối tượng (VESSEL, PORT_CALL, BERTH_PLAN, MILESTONE) theo chuẩn ISO 27001.
+# Endpoint: "/api/vessel-berth/audit-logs", methods=["GET"], "/api/v1/audit-logs", methods=["GET"], "/audit-logs", methods=["GET"]
+# ------------------------------------------------------------------------------
 @vessel_berth_bp.route("/api/vessel-berth/audit-logs", methods=["GET"])
 @vessel_berth_bp.route("/api/v1/audit-logs", methods=["GET"])
 @vessel_berth_bp.route("/audit-logs", methods=["GET"])
