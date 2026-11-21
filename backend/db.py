@@ -24,10 +24,19 @@ try:
 except ImportError:
     HAS_PSYCOPG2 = False
 
+# Load .env if present
+try:
+    from dotenv import load_dotenv
+    _env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(_env_file):
+        load_dotenv(_env_file)
+except Exception:
+    pass
+
 PG_HOST = os.environ.get("SPMS_PG_HOST", "127.0.0.1")
 PG_PORT = int(os.environ.get("SPMS_PG_PORT", "5432"))
 PG_USER = os.environ.get("SPMS_PG_USER", "postgres")
-PG_PASSWORD = os.environ.get("SPMS_PG_PASSWORD", "")
+PG_PASSWORD = os.environ.get("SPMS_PG_PASSWORD", "123456")
 PG_DBNAME = os.environ.get("SPMS_PG_DBNAME", "spms_db")
 SPMS_FORCE_SQLITE = os.environ.get("SPMS_FORCE_SQLITE", "0") == "1"
 
@@ -177,7 +186,7 @@ def get_db_engine():
 def get_db_info():
     engine = get_db_engine()
     if engine == "POSTGRESQL":
-        return f"PostgreSQL 17 (Database: {PG_DBNAME} @ {PG_HOST}:{PG_PORT})"
+        return f"PostgreSQL (Database: {PG_DBNAME} @ {PG_HOST}:{PG_PORT})"
     return f"SQLite Embedded ({DB_PATH})"
 
 

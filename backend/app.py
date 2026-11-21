@@ -62,6 +62,18 @@ def yard_page():
     return render_template("yard_container.html")
 
 # ------------------------------------------------------------------------------
+# Function: db_info_endpoint
+# Mục đích sử dụng: Trả về thông tin cơ sở dữ liệu đang kết nối (PostgreSQL / SQLite).
+# ------------------------------------------------------------------------------
+@app.route("/api/system/db-info", methods=["GET"])
+def db_info_endpoint():
+    return jsonify({
+        "status": "ONLINE",
+        "engine": db.get_db_engine(),
+        "database_info": db.get_db_info()
+    })
+
+# ------------------------------------------------------------------------------
 # Function: run_tests
 # Mục đích sử dụng: API kích hoạt chạy toàn bộ bộ kiểm thử tự động (46 test cases) thời gian thực và trả về kết quả JSON.
 # ------------------------------------------------------------------------------
@@ -150,6 +162,6 @@ if __name__ == "__main__":
     print("  - Module 1 (Vessel & Berth)  : http://localhost:8088/vessel")
     print("  - Module 2 (Yard & Container): http://localhost:8088/yard")
     print("  - Portal Hợp Nhất           : http://localhost:8088/")
-    print("  - Database Backend           : SQLite3 ACID Persistent (backend/spms.db)")
+    print(f"  - Database Backend           : {db.get_db_info()}")
     print("=" * 65)
     app.run(host="0.0.0.0", port=port, debug=False)
